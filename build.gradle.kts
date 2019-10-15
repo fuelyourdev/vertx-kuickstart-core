@@ -12,8 +12,13 @@ repositories {
   jcenter()
 }
 
+val vertxVersion = "3.8.1"
+
 dependencies {
   implementation(kotlin("stdlib"))
+  implementation(kotlin("reflect"))
+
+  implementation("io.vertx:vertx-core:$vertxVersion")
 }
 
 tasks.withType<KotlinCompile> {
