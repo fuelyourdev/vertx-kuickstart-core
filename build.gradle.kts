@@ -19,6 +19,9 @@ dependencies {
   implementation(kotlin("reflect"))
 
   implementation("io.vertx:vertx-core:$vertxVersion")
+  implementation("io.vertx:vertx-web-api-contract:$vertxVersion")
+  implementation("org.reflections:reflections:0.9.11")
+  implementation("org.apache.commons:commons-collections4:4.0")
 }
 
 tasks.withType<KotlinCompile> {

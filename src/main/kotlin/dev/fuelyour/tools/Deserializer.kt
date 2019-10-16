@@ -155,38 +155,14 @@ class DeserializerImpl: Deserializer {
     return this?.let { type ->
       val genericType = type.getGenericType(0)
       when (val itemsKClass = genericType.kClass) {
-        ByteArray::class -> Field(
-          json.getBinary(key),
-          json.containsKey(key)
-        )
-        Boolean::class -> Field(
-          json.getBoolean(key),
-          json.containsKey(key)
-        )
-        Double::class -> Field(
-          json.getDouble(key),
-          json.containsKey(key)
-        )
-        Float::class -> Field(
-          json.getFloat(key),
-          json.containsKey(key)
-        )
-        Instant::class -> Field(
-          json.getInstant(key),
-          json.containsKey(key)
-        )
-        Int::class -> Field(
-          json.getInteger(key),
-          json.containsKey(key)
-        )
-        Long::class -> Field(
-          json.getLong(key),
-          json.containsKey(key)
-        )
-        String::class -> Field(
-          json.getString(key),
-          json.containsKey(key)
-        )
+        ByteArray::class -> Field(json.getBinary(key), json.containsKey(key))
+        Boolean::class -> Field(json.getBoolean(key), json.containsKey(key))
+        Double::class -> Field(json.getDouble(key), json.containsKey(key))
+        Float::class -> Field(json.getFloat(key), json.containsKey(key))
+        Instant::class -> Field(json.getInstant(key), json.containsKey(key))
+        Int::class -> Field(json.getInteger(key), json.containsKey(key))
+        Long::class -> Field(json.getLong(key), json.containsKey(key))
+        String::class -> Field(json.getString(key), json.containsKey(key))
         Field::class -> throw Exception("Field of Field type not allowed")
         List::class -> Field(
           genericType.instantiateList(json.getJsonArray(key)),
