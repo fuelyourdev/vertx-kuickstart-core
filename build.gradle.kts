@@ -20,8 +20,11 @@ dependencies {
 
   implementation("io.vertx:vertx-core:$vertxVersion")
   implementation("io.vertx:vertx-web-api-contract:$vertxVersion")
+  implementation("io.vertx:vertx-lang-kotlin:$vertxVersion")
+  implementation("io.vertx:vertx-lang-kotlin-coroutines:$vertxVersion")
   implementation("org.reflections:reflections:0.9.11")
   implementation("org.apache.commons:commons-collections4:4.0")
+  implementation("org.koin:koin-core:2.0.1")
 }
 
 tasks.withType<KotlinCompile> {
