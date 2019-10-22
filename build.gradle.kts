@@ -20,6 +20,8 @@ dependencies {
 
   implementation("io.vertx:vertx-core:$vertxVersion")
   implementation("io.vertx:vertx-web-api-contract:$vertxVersion")
+  implementation("io.vertx:vertx-auth-jwt:$vertxVersion")
+  implementation("io.vertx:vertx-pg-client:$vertxVersion")
   implementation("io.vertx:vertx-lang-kotlin:$vertxVersion")
   implementation("io.vertx:vertx-lang-kotlin-coroutines:$vertxVersion")
   implementation("org.reflections:reflections:0.9.11")
