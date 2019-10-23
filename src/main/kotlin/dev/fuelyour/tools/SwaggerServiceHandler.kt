@@ -16,7 +16,6 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
-import org.koin.core.KoinComponent
 import java.lang.reflect.InvocationTargetException
 import kotlin.Exception
 import kotlin.reflect.KClass
@@ -25,13 +24,8 @@ import kotlin.reflect.jvm.jvmErasure
 import kotlin.reflect.KFunction
 import kotlin.reflect.full.*
 
-class ControllerSupplier(
-  private val controllerPackage: String
-) : KoinComponent {
-  fun getControllerInstance(controllerName: String): Any {
-    val kclass = Class.forName("$controllerPackage.$controllerName").kotlin
-    return getKoin().get(kclass, null, null)
-  }
+interface ControllerSupplier {
+  fun getControllerInstance(controllerName: String): Any
 }
 
 class SwaggerServiceHandler(

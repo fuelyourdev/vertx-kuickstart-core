@@ -28,7 +28,6 @@ dependencies {
   implementation("org.flywaydb:flyway-core:6.0.0")
   implementation("org.reflections:reflections:0.9.11")
   implementation("org.apache.commons:commons-collections4:4.0")
-  implementation("org.koin:koin-core:2.0.1")
 }
 
 tasks.withType<KotlinCompile> {

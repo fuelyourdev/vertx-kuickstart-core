@@ -26,6 +26,28 @@ class SwaggerRouter(
   private val traverser: SwaggerTraverser
 ) {
 
+  companion object {
+    fun build(
+      swaggerAuthHandler: SwaggerAuthHandler,
+      controllerSupplier: ControllerSupplier,
+      serializer: Serializer,
+      deserializer: Deserializer
+    ):SwaggerRouter {
+      val swaggerServiceHandler = SwaggerServiceHandler(
+        controllerSupplier,
+        serializer,
+        deserializer
+      )
+      val swaggerTraverser = SwaggerTraverser()
+      val swaggerRouter = SwaggerRouter(
+        swaggerAuthHandler,
+        swaggerServiceHandler,
+        swaggerTraverser
+      )
+      return swaggerRouter
+    }
+  }
+
   fun route(router: Router, swaggerFile: OpenAPI) {
     router.route()
       .produces("application/json")
