@@ -18,6 +18,7 @@ class DeserializerTest : Deserializer by DeserializerImpl(), StringSpec() {
       forall(
         row(ctor, ctor.parameters[0], String::class.java),
         row(ctor, ctor.parameters[1], Int::class.java),
+        row(testMethod, testMethod.parameters[0], TestClass::class.java),
         row(testMethod, testMethod.parameters[1], Double::class.java),
         row(testMethod, testMethod.parameters[2], Boolean::class.java)
       ) { method, param, type ->
