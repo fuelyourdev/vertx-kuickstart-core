@@ -29,7 +29,10 @@ class DeserializerImpl: Deserializer {
     return javaConstructor?.let {
       it.genericParameterTypes[index]
     } ?: javaMethod?.let {
-      it.genericParameterTypes[index-1]
+      when (index) {
+        0 -> it.declaringClass
+        else -> it.genericParameterTypes[index - 1]
+      }
     }
   }
 
