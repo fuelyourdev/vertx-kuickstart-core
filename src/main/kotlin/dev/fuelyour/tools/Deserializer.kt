@@ -9,6 +9,7 @@ import java.time.Instant
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
 import kotlin.reflect.KParameter
+import kotlin.reflect.full.instanceParameter
 import kotlin.reflect.jvm.javaConstructor
 import kotlin.reflect.jvm.javaMethod
 import kotlin.reflect.jvm.jvmErasure
@@ -22,16 +23,18 @@ interface Deserializer {
 
 class DeserializerImpl: Deserializer {
 
-  override fun KFunction<*>.getTypeForParam(
-    param: KParameter
-  ): Type? {
+  override fun KFunction<*>.getTypeForParam(param: KParameter): Type? {
     val index = param.index
     return javaConstructor?.let {
       it.genericParameterTypes[index]
     } ?: javaMethod?.let {
-      when (index) {
-        0 -> it.declaringClass
-        else -> it.genericParameterTypes[index - 1]
+      if (instanceParameter != null) {
+        when (index) {
+          0 -> it.declaringClass
+          else -> it.genericParameterTypes[index - 1]
+        }
+      } else {
+        it.genericParameterTypes[index]
       }
     }
   }
