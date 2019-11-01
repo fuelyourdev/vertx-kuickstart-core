@@ -4,6 +4,7 @@ package dev.fuelyour.tools
 
 import io.kotlintest.data.forall
 import io.kotlintest.shouldBe
+import io.kotlintest.shouldThrow
 import io.kotlintest.specs.StringSpec
 import io.kotlintest.tables.row
 import kotlin.reflect.full.declaredFunctions
@@ -25,39 +26,54 @@ object Singleton {
 
 class DeserializerTest : Deserializer by DeserializerImpl(), StringSpec() {
   init {
-    "getTypeForParam works for all types of constructors and functions" {
-      val kclass = TestClass::class
-      val ctor = kclass.constructors.first()
-      val classFun = kclass.declaredFunctions.first()
-      val topLevelFun = ::topLevelFunction
-      val companionFun = TestClass.Companion::companionFunction
-      val singletonFun = Singleton::singletonFunction
-      val extensionFun = String::extensionFunction
+    val kclass = TestClass::class
+    val ctor = kclass.constructors.first()
+    val classFun = kclass.declaredFunctions.first()
+    val topLevelFun = ::topLevelFunction
+    val companionFun = TestClass.Companion::companionFunction
+    val singletonFun = Singleton::singletonFunction
+    val extensionFun = String::extensionFunction
 
+    "getTypeForParamAt works for all types of constructors and functions" {
       forall(
-        row(ctor, ctor.parameters[0], String::class.java),
-        row(ctor, ctor.parameters[1], Int::class.java),
+        row(ctor, 0, String::class.java),
+        row(ctor, 1, Int::class.java),
 
         // For class functions, the first parameter is an instance
         // of the class
-        row(classFun, classFun.parameters[0], TestClass::class.java),
-        row(classFun, classFun.parameters[1], Double::class.java),
-        row(classFun, classFun.parameters[2], Boolean::class.java),
+        row(classFun, 0, TestClass::class.java),
+        row(classFun, 1, Double::class.java),
+        row(classFun, 2, Boolean::class.java),
 
         // For extension functions, the first parameter is an instance
         // of the class being extended
-        row(extensionFun, extensionFun.parameters[0], String::class.java),
-        row(extensionFun, extensionFun.parameters[1], Int::class.java),
+        row(extensionFun, 0, String::class.java),
+        row(extensionFun, 1, Int::class.java),
 
-        row(topLevelFun, topLevelFun.parameters[0], Long::class.java),
-        row(topLevelFun, topLevelFun.parameters[1], Float::class.java),
+        row(topLevelFun, 0, Long::class.java),
+        row(topLevelFun, 1, Float::class.java),
 
-        row(companionFun, companionFun.parameters[0], Short::class.java),
+        row(companionFun, 0, Short::class.java),
 
-        row(singletonFun, singletonFun.parameters[0], Char::class.java),
-        row(singletonFun, singletonFun.parameters[1], Byte::class.java)
-      ) { method, param, type ->
-        method.getTypeForParam(param) shouldBe type
+        row(singletonFun, 0, Char::class.java),
+        row(singletonFun, 1, Byte::class.java)
+      ) { method, paramIndex, type ->
+        method.getTypeForParamAt(paramIndex) shouldBe type
+      }
+    }
+
+    "getTypeForParamAt throws IndexOutOfBoundsException" {
+      forall(
+        row(ctor, 2),
+        row(classFun, 3),
+        row(extensionFun, 2),
+        row(topLevelFun, 2),
+        row(companionFun, 1),
+        row(singletonFun, 2)
+      ) { method, paramIndex ->
+        shouldThrow<IndexOutOfBoundsException> {
+          method.getTypeForParamAt(paramIndex)
+        }
       }
     }
   }

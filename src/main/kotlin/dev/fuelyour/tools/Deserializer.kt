@@ -15,7 +15,7 @@ import kotlin.reflect.jvm.javaMethod
 import kotlin.reflect.jvm.jvmErasure
 
 interface Deserializer {
-  fun KFunction<*>.getTypeForParam(param: KParameter): Type?
+  fun KFunction<*>.getTypeForParamAt(index: Int): Type?
   fun <T: Any> KClass<T>.instantiate(json: JsonObject?): T?
   fun Type?.instantiateList(arr: JsonArray): List<Any?>
   fun Type?.instantiateMap(obj: JsonObject): Map<String, Any?>
@@ -23,8 +23,7 @@ interface Deserializer {
 
 class DeserializerImpl: Deserializer {
 
-  override fun KFunction<*>.getTypeForParam(param: KParameter): Type? {
-    val index = param.index
+  override fun KFunction<*>.getTypeForParamAt(index: Int): Type? {
     return javaConstructor?.let {
       it.genericParameterTypes[index]
     } ?: javaMethod?.let {
@@ -53,11 +52,11 @@ class DeserializerImpl: Deserializer {
           Int::class -> json.getInteger(name)
           Long::class -> json.getLong(name)
           String::class -> json.getString(name)
-          Field::class -> ctor.getTypeForParam(param)
+          Field::class -> ctor.getTypeForParamAt(param.index)
             .instantiateField(json, name)
-          List::class -> ctor.getTypeForParam(param)
+          List::class -> ctor.getTypeForParamAt(param.index)
             .instantiateList(json.getJsonArray(name))
-          Map::class -> ctor.getTypeForParam(param)
+          Map::class -> ctor.getTypeForParamAt(param.index)
             .instantiateMap(json.getJsonObject(name))
           else -> kclass.instantiate(json.getJsonObject(name))
         }
