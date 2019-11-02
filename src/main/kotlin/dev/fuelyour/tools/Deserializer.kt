@@ -8,14 +8,13 @@ import java.lang.reflect.WildcardType
 import java.time.Instant
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
-import kotlin.reflect.KParameter
 import kotlin.reflect.full.instanceParameter
 import kotlin.reflect.jvm.javaConstructor
 import kotlin.reflect.jvm.javaMethod
 import kotlin.reflect.jvm.jvmErasure
 
 interface Deserializer {
-  fun KFunction<*>.getTypeForParamAt(index: Int): Type?
+  fun KFunction<*>.getTypeForParamAt(index: Int): Type
   fun <T: Any> KClass<T>.instantiate(json: JsonObject?): T?
   fun Type?.instantiateList(arr: JsonArray): List<Any?>
   fun Type?.instantiateMap(obj: JsonObject): Map<String, Any?>
@@ -23,7 +22,7 @@ interface Deserializer {
 
 class DeserializerImpl: Deserializer {
 
-  override fun KFunction<*>.getTypeForParamAt(index: Int): Type? {
+  override fun KFunction<*>.getTypeForParamAt(index: Int): Type {
     return javaConstructor?.let {
       it.genericParameterTypes[index]
     } ?: javaMethod?.let {
@@ -35,7 +34,7 @@ class DeserializerImpl: Deserializer {
       } else {
         it.genericParameterTypes[index]
       }
-    }
+    } ?: throw Exception("Unable to find Java reflection info for $this")
   }
 
   override fun <T: Any> KClass<T>.instantiate(json: JsonObject?): T? {
