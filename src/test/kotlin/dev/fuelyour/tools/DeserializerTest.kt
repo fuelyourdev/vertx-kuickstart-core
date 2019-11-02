@@ -64,12 +64,12 @@ class DeserializerTest : Deserializer by DeserializerImpl(), StringSpec() {
 
     "getTypeForParamAt throws IndexOutOfBoundsException" {
       forall(
-        row(ctor, 2),
-        row(classFun, 3),
-        row(extensionFun, 2),
-        row(topLevelFun, 2),
-        row(companionFun, 1),
-        row(singletonFun, 2)
+        row(ctor, ctor.parameters.size),
+        row(classFun, classFun.parameters.size),
+        row(extensionFun, extensionFun.parameters.size),
+        row(topLevelFun, topLevelFun.parameters.size),
+        row(companionFun, companionFun.parameters.size),
+        row(singletonFun, singletonFun.parameters.size)
       ) { method, paramIndex ->
         shouldThrow<IndexOutOfBoundsException> {
           method.getTypeForParamAt(paramIndex)
