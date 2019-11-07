@@ -2,6 +2,7 @@ package dev.fuelyour.tools
 
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
+import java.lang.ClassCastException
 import java.lang.reflect.ParameterizedType
 import java.lang.reflect.Type
 import java.lang.reflect.WildcardType
@@ -16,8 +17,8 @@ import kotlin.reflect.jvm.jvmErasure
 interface Deserializer {
   fun KFunction<*>.getTypeForParamAt(index: Int): Type
   fun <T: Any> KClass<T>.instantiate(json: JsonObject?): T?
-  fun Type?.instantiateList(arr: JsonArray): List<Any?>
-  fun Type?.instantiateMap(obj: JsonObject): Map<String, Any?>
+  fun Type?.instantiateList(arr: JsonArray?): List<Any?>?
+  fun Type?.instantiateMap(obj: JsonObject?): Map<String, Any?>?
 }
 
 class DeserializerImpl: Deserializer {
@@ -42,29 +43,40 @@ class DeserializerImpl: Deserializer {
     val ctor = constructors.first()
     val params = ctor.parameters.map { param ->
       param.name?.let { name ->
-        when (val kclass = param.type.jvmErasure) {
-          ByteArray::class -> json.getBinary(name)
-          Boolean::class -> json.getBoolean(name)
-          Double::class -> json.getDouble(name)
-          Float::class -> json.getFloat(name)
-          Instant::class -> json.getInstant(name)
-          Int::class -> json.getInteger(name)
-          Long::class -> json.getLong(name)
-          String::class -> json.getString(name)
-          Field::class -> ctor.getTypeForParamAt(param.index)
-            .instantiateField(json, name)
-          List::class -> ctor.getTypeForParamAt(param.index)
-            .instantiateList(json.getJsonArray(name))
-          Map::class -> ctor.getTypeForParamAt(param.index)
-            .instantiateMap(json.getJsonObject(name))
-          else -> kclass.instantiate(json.getJsonObject(name))
+        try {
+          val value = when (val kclass = param.type.jvmErasure) {
+            ByteArray::class -> json.getBinary(name)
+            Boolean::class -> json.getBoolean(name)
+            Double::class -> json.getDouble(name)
+            Float::class -> json.getFloat(name)
+            Instant::class -> json.getInstant(name)
+            Int::class -> json.getInteger(name)
+            Long::class -> json.getLong(name)
+            String::class -> json.getString(name)
+            Field::class -> ctor.getTypeForParamAt(param.index)
+              .instantiateField(json, name)
+            List::class -> ctor.getTypeForParamAt(param.index)
+              .instantiateList(json.getJsonArray(name))
+            Map::class -> ctor.getTypeForParamAt(param.index)
+              .instantiateMap(json.getJsonObject(name))
+            else -> kclass.instantiate(json.getJsonObject(name))
+          }
+          if (!param.type.isMarkedNullable && value == null) {
+            throw Exception("${this.simpleName}.$name cannot be null")
+          }
+          value
+        } catch (e: ClassCastException) {
+          throw Exception("${this.simpleName}.$name expects type " +
+              "${param.type.jvmErasure.simpleName} " +
+              "but was given the value: ${json.getValue(name)}", e)
         }
       }
     }
     return ctor.call(*params.toTypedArray())
   }
 
-  override fun Type?.instantiateList(arr: JsonArray): List<Any?> {
+  override fun Type?.instantiateList(arr: JsonArray?): List<Any?>? {
+    if (arr == null) return null
     val range = 0 until arr.size()
     return this?.let { type ->
       val genericType = type.getGenericType(0)
@@ -89,7 +101,8 @@ class DeserializerImpl: Deserializer {
     } ?: range.map { arr.getValue(it) }
   }
 
-  override fun Type?.instantiateMap(obj: JsonObject): Map<String, Any?> {
+  override fun Type?.instantiateMap(obj: JsonObject?): Map<String, Any?>? {
+    if (obj == null) return null
     return this?.let { type ->
       val genericType = type.getGenericType(1)
       val itemsKClass = genericType.kClass

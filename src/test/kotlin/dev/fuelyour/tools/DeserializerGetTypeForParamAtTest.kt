@@ -7,6 +7,8 @@ import io.kotlintest.shouldBe
 import io.kotlintest.shouldThrow
 import io.kotlintest.specs.StringSpec
 import io.kotlintest.tables.row
+import io.vertx.core.json.JsonObject
+import io.vertx.kotlin.core.json.jsonObjectOf
 import java.lang.reflect.ParameterizedType
 import kotlin.reflect.full.declaredFunctions
 
@@ -38,7 +40,9 @@ object ListSingleton {
   fun singletonListFunction(param1: List<Char>, param2: List<Byte>) { }
 }
 
-class DeserializerTest : Deserializer by DeserializerImpl(), StringSpec() {
+class DeserializerGetTypeForParamAtTest :
+    Deserializer by DeserializerImpl(), StringSpec() {
+
   init {
     val kclass = TestClass::class
     val ctor = kclass.constructors.first()
