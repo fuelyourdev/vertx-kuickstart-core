@@ -10,6 +10,7 @@ import java.time.Instant
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
 import kotlin.reflect.full.instanceParameter
+import kotlin.reflect.full.primaryConstructor
 import kotlin.reflect.jvm.javaConstructor
 import kotlin.reflect.jvm.javaMethod
 import kotlin.reflect.jvm.jvmErasure
@@ -40,7 +41,8 @@ class DeserializerImpl: Deserializer {
 
   override fun <T: Any> KClass<T>.instantiate(json: JsonObject?): T? {
     if (json == null) return null
-    val ctor = constructors.first()
+    val ctor = primaryConstructor
+      ?: throw Exception("${this.simpleName} is missing a primary constructor")
     val params = ctor.parameters.map { param ->
       param.name?.let { name ->
         try {
@@ -59,20 +61,39 @@ class DeserializerImpl: Deserializer {
               .instantiateList(json.getJsonArray(name))
             Map::class -> ctor.getTypeForParamAt(param.index)
               .instantiateMap(json.getJsonObject(name))
-            else -> kclass.instantiate(json.getJsonObject(name))
+            else ->
+              if (kclass.java.isEnum)
+                kclass.instantiateEnum(json.getString(name))
+              else
+                kclass.instantiate(json.getJsonObject(name))
           }
           if (!param.type.isMarkedNullable && value == null) {
             throw Exception("${this.simpleName}.$name cannot be null")
           }
           value
-        } catch (e: ClassCastException) {
-          throw Exception("${this.simpleName}.$name expects type " +
-              "${param.type.jvmErasure.simpleName} " +
-              "but was given the value: ${json.getValue(name)}", e)
+        } catch (e: Exception) {
+          when (e) {
+            is ClassCastException, is NoSuchElementException ->
+              throw Exception(
+                "${this.simpleName}.$name expects type " +
+                    "${param.type.jvmErasure.simpleName} " +
+                    "but was given the value: ${json.getValue(name)}", e
+              )
+            else -> throw e
+          }
         }
       }
     }
     return ctor.call(*params.toTypedArray())
+  }
+
+  @Suppress("UNCHECKED_CAST")
+  private fun KClass<*>.instantiateEnum(enumString: String?): Any? {
+    if (enumString == null) return null
+    return with(java.enumConstants as Array<Enum<*>>)
+    {
+      first { it.name == enumString }
+    }
   }
 
   override fun Type?.instantiateList(arr: JsonArray?): List<Any?>? {

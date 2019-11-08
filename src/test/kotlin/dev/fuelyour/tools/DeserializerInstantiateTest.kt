@@ -8,6 +8,11 @@ import io.vertx.kotlin.core.json.jsonObjectOf
 import java.time.Instant
 
 
+@Suppress("unused")
+enum class MyEnum {
+  MyValue1,
+  MyValue2
+}
 
 class DeserializerInstantiateTest :
     Deserializer by DeserializerImpl(), StringSpec() {
@@ -107,16 +112,39 @@ class DeserializerInstantiateTest :
       result shouldBe expected
     }
 
-      "instantiate throws an exception if parameter is wrong type" {
-        data class MyClass(val myParam: Int)
+    "A Field param distinguishes between missing params and explicit nulls" {
+      data class MyClass(
+        val param1: Field<String?>,
+        val param2: Field<String?>,
+        val param3: Field<String?>
+      )
 
-        val json = jsonObjectOf("myParam" to "String")
-        val exception = shouldThrow<Exception> {
-          MyClass::class.instantiate(json)
-        }
-        exception.message shouldBe "MyClass.myParam expects type Int " +
-            "but was given the value: String"
+      val json = jsonObjectOf(
+        "param1" to "present",
+        "param2" to null
+      )
+
+      val expected = MyClass(
+        Field("present", true),
+        Field(null, true),
+        Field(null, false)
+      )
+
+      val result = MyClass::class.instantiate(json)
+
+      result shouldBe expected
+    }
+
+    "instantiate throws an exception if parameter is wrong type" {
+      data class MyClass(val myParam: Int)
+
+      val json = jsonObjectOf("myParam" to "String")
+      val exception = shouldThrow<Exception> {
+        MyClass::class.instantiate(json)
       }
+      exception.message shouldBe "MyClass.myParam expects type Int " +
+          "but was given the value: String"
+    }
 
     "instantiate throws an exception if parameter is null and is not nullable" {
       data class ParamNotNullable(val param1: Int)
@@ -125,6 +153,96 @@ class DeserializerInstantiateTest :
         ParamNotNullable::class.instantiate(JsonObject())
       }
       exception.message shouldBe "ParamNotNullable.param1 cannot be null"
+    }
+
+    "instantiate returns null if the json is null" {
+      data class MyClass(val myParam: Int)
+
+      MyClass::class.instantiate(null) shouldBe null
+    }
+
+    "instantiate can handle byte array params" {
+      data class MyClass(val bytes: ByteArray) {
+
+        override fun equals(other: Any?): Boolean {
+          if (this === other) return true
+          if (javaClass != other?.javaClass) return false
+
+          other as MyClass
+
+          if (!bytes.contentEquals(other.bytes)) return false
+
+          return true
+        }
+
+        override fun hashCode(): Int {
+          return bytes.contentHashCode()
+        }
+
+      }
+
+      val json = jsonObjectOf("bytes" to ByteArray(0))
+      val expected = MyClass(ByteArray(0))
+
+      MyClass::class.instantiate(json) shouldBe expected
+    }
+
+    "instantiate expects the class to have a primary constructor" {
+      @Suppress("ConvertSecondaryConstructorToPrimary", "unused")
+      class NoPrimaryCtor {
+        val param1: Int
+        constructor(param1: Int) {
+          this.param1 = param1
+        }
+      }
+
+      val exception = shouldThrow<Exception> {
+        NoPrimaryCtor::class.instantiate(JsonObject())
+      }
+      exception.message shouldBe "NoPrimaryCtor is missing a primary " +
+          "constructor"
+    }
+
+    "instantiate can handle enum params" {
+      data class ClassWithEnum(val myEnum: MyEnum)
+
+      val json = jsonObjectOf("myEnum" to "MyValue1")
+      val expected = ClassWithEnum(MyEnum.MyValue1)
+
+      ClassWithEnum::class.instantiate(json) shouldBe expected
+    }
+
+    "instantiate can handle null enum params" {
+      data class ClassWithEnum(val myEnum: MyEnum?)
+
+      val json = jsonObjectOf("myEnum" to null)
+      val expected = ClassWithEnum(null)
+
+      ClassWithEnum::class.instantiate(json) shouldBe expected
+    }
+
+    "instantiate for enum with a value not in the enum throws an exception" {
+      data class ClassWithEnum(val myEnum: MyEnum)
+
+      val json = jsonObjectOf("myEnum" to "NotInEnum")
+
+      val exception = shouldThrow<Exception> {
+        ClassWithEnum::class.instantiate(json)
+      }
+      exception.message shouldBe "ClassWithEnum.myEnum expects type MyEnum " +
+          "but was given the value: NotInEnum"
+    }
+
+    "instantiate for enum with a non string value throws an exception" {
+      data class ClassWithEnum(val myEnum: MyEnum)
+
+      val json = jsonObjectOf("myEnum" to 1)
+
+      val exception = shouldThrow<Exception> {
+        ClassWithEnum::class.instantiate(json)
+      }
+      exception.message shouldBe "ClassWithEnum.myEnum expects type MyEnum " +
+          "but was given the value: 1"
     }
   }
 }
