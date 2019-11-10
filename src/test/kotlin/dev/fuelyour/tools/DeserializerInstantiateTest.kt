@@ -229,8 +229,7 @@ class DeserializerInstantiateTest :
       val exception = shouldThrow<Exception> {
         ClassWithEnum::class.instantiate(json)
       }
-      exception.message shouldBe "ClassWithEnum.myEnum expects type MyEnum " +
-          "but was given the value: NotInEnum"
+      exception.message shouldBe "Enum MyEnum does not contain value: NotInEnum"
     }
 
     "instantiate for enum with a non string value throws an exception" {

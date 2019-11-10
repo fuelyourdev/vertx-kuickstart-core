@@ -9,6 +9,7 @@ import java.lang.reflect.WildcardType
 import java.time.Instant
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
+import kotlin.reflect.KParameter
 import kotlin.reflect.full.instanceParameter
 import kotlin.reflect.full.primaryConstructor
 import kotlin.reflect.jvm.javaConstructor
@@ -18,11 +19,28 @@ import kotlin.reflect.jvm.jvmErasure
 interface Deserializer {
   fun KFunction<*>.getTypeForParamAt(index: Int): Type
   fun <T: Any> KClass<T>.instantiate(json: JsonObject?): T?
-  fun Type?.instantiateList(arr: JsonArray?): List<Any?>?
-  fun Type?.instantiateMap(obj: JsonObject?): Map<String, Any?>?
+  fun Type.instantiateList(arr: JsonArray?): List<Any?>?
+  fun Type.instantiateMap(obj: JsonObject?): Map<String, Any?>?
 }
 
+class FullParameter(
+  val function:KFunction<*>,
+  val param: KParameter,
+  val type: Type
+)
+
 class DeserializerImpl: Deserializer {
+
+  val KFunction<*>.fullParameters
+    get() = parameters.map {
+      FullParameter(this, it, getTypeForParamAt(it.index))
+    }
+
+  private val KFunction<*>.declaringClass: Class<*>
+    get() =
+      javaConstructor?.declaringClass
+        ?: javaMethod?.declaringClass
+        ?: throw Exception("Unable to find Java reflection info for $this")
 
   override fun KFunction<*>.getTypeForParamAt(index: Int): Type {
     return javaConstructor?.let {
@@ -41,62 +59,85 @@ class DeserializerImpl: Deserializer {
 
   override fun <T: Any> KClass<T>.instantiate(json: JsonObject?): T? {
     if (json == null) return null
-    val ctor = primaryConstructor
-      ?: throw Exception("${this.simpleName} is missing a primary constructor")
-    val params = ctor.parameters.map { param ->
-      param.name?.let { name ->
-        try {
-          val value = when (val kclass = param.type.jvmErasure) {
-            ByteArray::class -> json.getBinary(name)
-            Boolean::class -> json.getBoolean(name)
-            Double::class -> json.getDouble(name)
-            Float::class -> json.getFloat(name)
-            Instant::class -> json.getInstant(name)
-            Int::class -> json.getInteger(name)
-            Long::class -> json.getLong(name)
-            String::class -> json.getString(name)
-            Field::class -> ctor.getTypeForParamAt(param.index)
-              .instantiateField(json, name)
-            List::class -> ctor.getTypeForParamAt(param.index)
-              .instantiateList(json.getJsonArray(name))
-            Map::class -> ctor.getTypeForParamAt(param.index)
-              .instantiateMap(json.getJsonObject(name))
-            else ->
-              if (kclass.java.isEnum)
-                kclass.instantiateEnum(json.getString(name))
-              else
-                kclass.instantiate(json.getJsonObject(name))
-          }
-          if (!param.type.isMarkedNullable && value == null) {
-            throw Exception("${this.simpleName}.$name cannot be null")
-          }
-          value
-        } catch (e: Exception) {
-          when (e) {
-            is ClassCastException, is NoSuchElementException ->
-              throw Exception(
-                "${this.simpleName}.$name expects type " +
-                    "${param.type.jvmErasure.simpleName} " +
-                    "but was given the value: ${json.getValue(name)}", e
-              )
-            else -> throw e
-          }
-        }
-      }
-    }
+    val ctor = primaryConstructor ?: handleMissingPrimaryConstructor()
+    val params = ctor.fullParameters.map { param -> param.instantiate(json) }
     return ctor.call(*params.toTypedArray())
   }
+
+  private val FullParameter.name: String
+    get() = param.name ?: handleMissingParamName()
+
+  private fun FullParameter.instantiate(
+    json: JsonObject
+  ): Any? {
+    return try {
+      val value = when (`class`) {
+        ByteArray::class -> json.getBinary(name)
+        Boolean::class -> json.getBoolean(name)
+        Double::class -> json.getDouble(name)
+        Float::class -> json.getFloat(name)
+        Instant::class -> json.getInstant(name)
+        Int::class -> json.getInteger(name)
+        Long::class -> json.getLong(name)
+        String::class -> json.getString(name)
+        Field::class -> type
+          .instantiateField(json, name)
+        List::class -> type
+          .instantiateList(json.getJsonArray(name))
+        Map::class -> type
+          .instantiateMap(json.getJsonObject(name))
+        else ->
+          if (`class`.isEnum)
+            `class`.instantiateEnum(json.getString(name))
+          else
+            `class`.instantiate(json.getJsonObject(name))
+      }
+      value.verifyOnlyNullIfParamAllows(this)
+      value
+    } catch (e: ClassCastException) {
+        throw Exception(
+          "${function.declaringClass.simpleName}.${name} " +
+              "expects type ${`class`.simpleName} " +
+              "but was given the value: ${json.getValue(name)}", e)
+    }
+  }
+
+  private fun Any?.verifyOnlyNullIfParamAllows(param: FullParameter) {
+    if (!param.param.type.isMarkedNullable && this == null) {
+      throw Exception(
+        "${param.function.declaringClass.simpleName}.${param.name} " +
+            "cannot be null")
+    }
+  }
+
+  private fun <T: Any> KClass<T>.handleMissingPrimaryConstructor(): Nothing {
+    throw Exception("$simpleName is missing a primary constructor")
+  }
+
+  private fun FullParameter.handleMissingParamName(): Nothing {
+    throw Exception("Parameter names for the function ${function.name} " +
+        "are missing")
+  }
+
+  private val FullParameter.`class`:KClass<*>
+    get() = param.type.jvmErasure
+
+  private val KClass<*>.isEnum: Boolean
+    get() = java.isEnum
 
   @Suppress("UNCHECKED_CAST")
   private fun KClass<*>.instantiateEnum(enumString: String?): Any? {
     if (enumString == null) return null
-    return with(java.enumConstants as Array<Enum<*>>)
-    {
-      first { it.name == enumString }
+    return with(java.enumConstants as Array<Enum<*>>) {
+      try {
+        first { it.name == enumString }
+      } catch (e: NoSuchElementException) {
+        throw Exception("Enum $simpleName does not contain value: $enumString")
+      }
     }
   }
 
-  override fun Type?.instantiateList(arr: JsonArray?): List<Any?>? {
+  override fun Type.instantiateList(arr: JsonArray?): List<Any?>? {
     if (arr == null) return null
     val range = 0 until arr.size()
     return this?.let { type ->
@@ -122,7 +163,7 @@ class DeserializerImpl: Deserializer {
     } ?: range.map { arr.getValue(it) }
   }
 
-  override fun Type?.instantiateMap(obj: JsonObject?): Map<String, Any?>? {
+  override fun Type.instantiateMap(obj: JsonObject?): Map<String, Any?>? {
     if (obj == null) return null
     return this?.let { type ->
       val genericType = type.getGenericType(1)
@@ -186,7 +227,7 @@ class DeserializerImpl: Deserializer {
     } ?: Field(arr.getValue(pos), true)
   }
 
-  private fun Type?.instantiateField(
+  private fun Type.instantiateField(
     json: JsonObject,
     key: String
   ): Field<out Any?> {
