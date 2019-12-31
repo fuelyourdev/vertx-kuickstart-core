@@ -128,9 +128,9 @@ class SwaggerServiceHandler(
     return when (param.type.jvmErasure) {
       JsonObject::class -> context.bodyAsJson
       JsonArray::class -> context.bodyAsJsonArray
-      List::class -> method.getTypeForParamAt(param.index)
+      List::class -> method.fullParameters[param.index]
         .instantiateList(context.bodyAsJsonArray)
-      Map::class -> method.getTypeForParamAt(param.index)
+      Map::class -> method.fullParameters[param.index]
         .instantiateMap(context.bodyAsJson)
       Field::class -> throw Exception(
         "Field not allowed as a controller function param"

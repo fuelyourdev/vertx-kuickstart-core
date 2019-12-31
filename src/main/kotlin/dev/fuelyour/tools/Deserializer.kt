@@ -1,5 +1,6 @@
 package dev.fuelyour.tools
 
+import dev.fuelyour.exceptions.VertxKuickstartException
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import java.lang.ClassCastException
@@ -9,53 +10,24 @@ import java.lang.reflect.WildcardType
 import java.time.Instant
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
-import kotlin.reflect.KParameter
-import kotlin.reflect.full.instanceParameter
 import kotlin.reflect.full.primaryConstructor
 import kotlin.reflect.jvm.javaConstructor
 import kotlin.reflect.jvm.javaMethod
-import kotlin.reflect.jvm.jvmErasure
 
 interface Deserializer {
-  fun KFunction<*>.getTypeForParamAt(index: Int): Type
   fun <T: Any> KClass<T>.instantiate(json: JsonObject?): T?
-  fun Type.instantiateList(arr: JsonArray?): List<Any?>?
-  fun Type.instantiateMap(obj: JsonObject?): Map<String, Any?>?
+  fun FullParameter.instantiateList(arr: JsonArray?): List<Any?>?
+  fun FullParameter.instantiateMap(obj: JsonObject?): Map<String, Any?>?
 }
 
-class FullParameter(
-  val function:KFunction<*>,
-  val param: KParameter,
-  val type: Type
-)
-
 class DeserializerImpl: Deserializer {
-
-  val KFunction<*>.fullParameters
-    get() = parameters.map {
-      FullParameter(this, it, getTypeForParamAt(it.index))
-    }
 
   private val KFunction<*>.declaringClass: Class<*>
     get() =
       javaConstructor?.declaringClass
         ?: javaMethod?.declaringClass
-        ?: throw Exception("Unable to find Java reflection info for $this")
-
-  override fun KFunction<*>.getTypeForParamAt(index: Int): Type {
-    return javaConstructor?.let {
-      it.genericParameterTypes[index]
-    } ?: javaMethod?.let {
-      if (instanceParameter != null) {
-        when (index) {
-          0 -> it.declaringClass
-          else -> it.genericParameterTypes[index - 1]
-        }
-      } else {
-        it.genericParameterTypes[index]
-      }
-    } ?: throw Exception("Unable to find Java reflection info for $this")
-  }
+        ?: throw VertxKuickstartException(
+          "Unable to find Java reflection info for $this")
 
   override fun <T: Any> KClass<T>.instantiate(json: JsonObject?): T? {
     if (json == null) return null
@@ -63,9 +35,6 @@ class DeserializerImpl: Deserializer {
     val params = ctor.fullParameters.map { param -> param.instantiate(json) }
     return ctor.call(*params.toTypedArray())
   }
-
-  private val FullParameter.name: String
-    get() = param.name ?: handleMissingParamName()
 
   private fun FullParameter.instantiate(
     json: JsonObject
@@ -95,7 +64,7 @@ class DeserializerImpl: Deserializer {
       value.verifyOnlyNullIfParamAllows(this)
       value
     } catch (e: ClassCastException) {
-        throw Exception(
+        throw VertxKuickstartException(
           "${function.declaringClass.simpleName}.${name} " +
               "expects type ${`class`.simpleName} " +
               "but was given the value: ${json.getValue(name)}", e)
@@ -104,23 +73,15 @@ class DeserializerImpl: Deserializer {
 
   private fun Any?.verifyOnlyNullIfParamAllows(param: FullParameter) {
     if (!param.param.type.isMarkedNullable && this == null) {
-      throw Exception(
+      throw VertxKuickstartException(
         "${param.function.declaringClass.simpleName}.${param.name} " +
             "cannot be null")
     }
   }
 
   private fun <T: Any> KClass<T>.handleMissingPrimaryConstructor(): Nothing {
-    throw Exception("$simpleName is missing a primary constructor")
+    throw VertxKuickstartException("$simpleName is missing a primary constructor")
   }
-
-  private fun FullParameter.handleMissingParamName(): Nothing {
-    throw Exception("Parameter names for the function ${function.name} " +
-        "are missing")
-  }
-
-  private val FullParameter.`class`:KClass<*>
-    get() = param.type.jvmErasure
 
   private val KClass<*>.isEnum: Boolean
     get() = java.isEnum
@@ -132,15 +93,20 @@ class DeserializerImpl: Deserializer {
       try {
         first { it.name == enumString }
       } catch (e: NoSuchElementException) {
-        throw Exception("Enum $simpleName does not contain value: $enumString")
+        throw VertxKuickstartException(
+          "Enum $simpleName does not contain value: $enumString")
       }
     }
   }
 
-  override fun Type.instantiateList(arr: JsonArray?): List<Any?>? {
+  override fun FullParameter.instantiateList(arr: JsonArray?): List<Any?>? {
+    return type.instantiateList(arr)
+  }
+
+  private fun Type.instantiateList(arr: JsonArray?): List<Any?>? {
     if (arr == null) return null
     val range = 0 until arr.size()
-    return this?.let { type ->
+    return this.let { type ->
       val genericType = type.getGenericType(0)
       when (val itemsKClass = genericType.kClass) {
         ByteArray::class -> range.map { arr.getBinary(it) }
@@ -160,12 +126,16 @@ class DeserializerImpl: Deserializer {
         }
         else -> range.map { itemsKClass.instantiate(arr.getJsonObject(it)) }
       }
-    } ?: range.map { arr.getValue(it) }
+    }
   }
 
-  override fun Type.instantiateMap(obj: JsonObject?): Map<String, Any?>? {
+  override fun FullParameter.instantiateMap(obj: JsonObject?): Map<String, Any?>? {
+    return type.instantiateMap(obj)
+  }
+
+  private fun Type.instantiateMap(obj: JsonObject?): Map<String, Any?>? {
     if (obj == null) return null
-    return this?.let { type ->
+    return this.let { type ->
       val genericType = type.getGenericType(1)
       val itemsKClass = genericType.kClass
       val map = mutableMapOf<String, Any?>()
@@ -189,7 +159,7 @@ class DeserializerImpl: Deserializer {
         }
       }
       map
-    } ?: obj.map
+    }
   }
 
   private fun Type?.instantiateField(
@@ -207,7 +177,8 @@ class DeserializerImpl: Deserializer {
         Int::class -> Field(arr.getInteger(pos), true)
         Long::class -> Field(arr.getLong(pos), true)
         String::class -> Field(arr.getString(pos), true)
-        Field::class -> throw Exception("Field of Field type not allowed")
+        Field::class -> throw VertxKuickstartException(
+          "Field of Field type not allowed")
         List::class -> Field(
           genericType.instantiateList(arr.getJsonArray(pos)),
           true
@@ -231,7 +202,7 @@ class DeserializerImpl: Deserializer {
     json: JsonObject,
     key: String
   ): Field<out Any?> {
-    return this?.let { type ->
+    return this.let { type ->
       val genericType = type.getGenericType(0)
       when (val itemsKClass = genericType.kClass) {
         ByteArray::class -> Field(json.getBinary(key), json.containsKey(key))
@@ -242,7 +213,8 @@ class DeserializerImpl: Deserializer {
         Int::class -> Field(json.getInteger(key), json.containsKey(key))
         Long::class -> Field(json.getLong(key), json.containsKey(key))
         String::class -> Field(json.getString(key), json.containsKey(key))
-        Field::class -> throw Exception("Field of Field type not allowed")
+        Field::class -> throw VertxKuickstartException(
+          "Field of Field type not allowed")
         List::class -> Field(
           genericType.instantiateList(json.getJsonArray(key)),
           json.containsKey(key)
@@ -256,7 +228,7 @@ class DeserializerImpl: Deserializer {
           json.containsKey(key)
         )
       }
-    } ?: Field(json.getValue(key), json.containsKey(key))
+    }
   }
 
   private fun Type.getGenericType(index: Int): Type =

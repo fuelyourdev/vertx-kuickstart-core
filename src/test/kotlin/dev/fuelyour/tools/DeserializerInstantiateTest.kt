@@ -1,10 +1,14 @@
 package dev.fuelyour.tools
 
+import dev.fuelyour.exceptions.VertxKuickstartException
+import io.kotlintest.matchers.beInstanceOf
+import io.kotlintest.should
 import io.kotlintest.shouldBe
 import io.kotlintest.shouldThrow
 import io.kotlintest.specs.StringSpec
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.core.json.jsonObjectOf
+import java.lang.ClassCastException
 import java.time.Instant
 
 
@@ -139,17 +143,18 @@ class DeserializerInstantiateTest :
       data class MyClass(val myParam: Int)
 
       val json = jsonObjectOf("myParam" to "String")
-      val exception = shouldThrow<Exception> {
+      val exception = shouldThrow<VertxKuickstartException> {
         MyClass::class.instantiate(json)
       }
       exception.message shouldBe "MyClass.myParam expects type Int " +
           "but was given the value: String"
+      exception.cause should beInstanceOf<ClassCastException>()
     }
 
     "instantiate throws an exception if parameter is null and is not nullable" {
       data class ParamNotNullable(val param1: Int)
 
-      val exception = shouldThrow<Exception> {
+      val exception = shouldThrow<VertxKuickstartException> {
         ParamNotNullable::class.instantiate(JsonObject())
       }
       exception.message shouldBe "ParamNotNullable.param1 cannot be null"
@@ -196,7 +201,7 @@ class DeserializerInstantiateTest :
         }
       }
 
-      val exception = shouldThrow<Exception> {
+      val exception = shouldThrow<VertxKuickstartException> {
         NoPrimaryCtor::class.instantiate(JsonObject())
       }
       exception.message shouldBe "NoPrimaryCtor is missing a primary " +
@@ -226,7 +231,7 @@ class DeserializerInstantiateTest :
 
       val json = jsonObjectOf("myEnum" to "NotInEnum")
 
-      val exception = shouldThrow<Exception> {
+      val exception = shouldThrow<VertxKuickstartException> {
         ClassWithEnum::class.instantiate(json)
       }
       exception.message shouldBe "Enum MyEnum does not contain value: NotInEnum"
@@ -237,11 +242,12 @@ class DeserializerInstantiateTest :
 
       val json = jsonObjectOf("myEnum" to 1)
 
-      val exception = shouldThrow<Exception> {
+      val exception = shouldThrow<VertxKuickstartException> {
         ClassWithEnum::class.instantiate(json)
       }
       exception.message shouldBe "ClassWithEnum.myEnum expects type MyEnum " +
           "but was given the value: 1"
+      exception.cause should beInstanceOf<ClassCastException>()
     }
   }
 }
