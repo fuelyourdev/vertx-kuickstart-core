@@ -2,6 +2,7 @@
 
 package dev.fuelyour.tools
 
+import dev.fuelyour.exceptions.VertxKuickstartException
 import io.kotlintest.data.forall
 import io.kotlintest.shouldBe
 import io.kotlintest.shouldThrow
@@ -76,6 +77,50 @@ class FullParametersTest : StringSpec({
       fullParam.function shouldBe method
       fullParam.param shouldBe method.parameters[paramIndex]
       fullParam.type shouldBe type
+    }
+  }
+
+  "FullParameter.name returns the name of the parameter, if available" {
+    forall(
+      row(ctor, 0, "param1"),
+      row(ctor, 1, "param2"),
+
+      // For class functions, the first parameter is an instance
+      // of the class
+      row(classFun, 1, "param1"),
+      row(classFun, 2, "param2"),
+
+      // For extension functions, the first parameter is an instance
+      // of the class being extended
+      row(extensionFun, 1, "param1"),
+
+      row(topLevelFun, 0, "param1"),
+      row(topLevelFun, 1, "param2"),
+
+      row(companionFun, 0, "param1"),
+
+      row(singletonFun, 0, "param1"),
+      row(singletonFun, 1, "param2")
+    ) { method, paramIndex, paramName ->
+      method.fullParameters[paramIndex].name shouldBe paramName
+    }
+  }
+
+  "FullParameter.name throws an exception, if unavailable" {
+    forall(
+      // For class functions, the first parameter is an instance
+      // of the class
+      row(classFun, 0),
+
+      // For extension functions, the first parameter is an instance
+      // of the class being extended
+      row(extensionFun, 0)
+    ) { method, paramIndex ->
+      val exception = shouldThrow<VertxKuickstartException> {
+        method.fullParameters[paramIndex].name
+      }
+      exception.message shouldBe
+          "Parameter names for the function ${method.name} are missing"
     }
   }
 
