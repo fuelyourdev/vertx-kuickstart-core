@@ -30,6 +30,7 @@ dependencies {
   implementation("org.apache.commons:commons-collections4:4.0")
 
   testImplementation("io.kotlintest:kotlintest-runner-junit5:3.3.2")
+  testImplementation("io.mockk:mockk:1.9.3")
 }
 
 tasks.withType<KotlinCompile> {

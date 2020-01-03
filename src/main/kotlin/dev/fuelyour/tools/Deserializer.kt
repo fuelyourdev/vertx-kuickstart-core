@@ -40,7 +40,7 @@ class DeserializerImpl: Deserializer {
     json: JsonObject
   ): Any? {
     return try {
-      val value = when (`class`) {
+      val value = when (kclass) {
         ByteArray::class -> json.getBinary(name)
         Boolean::class -> json.getBoolean(name)
         Double::class -> json.getDouble(name)
@@ -56,17 +56,17 @@ class DeserializerImpl: Deserializer {
         Map::class -> type
           .instantiateMap(json.getJsonObject(name))
         else ->
-          if (`class`.isEnum)
-            `class`.instantiateEnum(json.getString(name))
+          if (kclass.isEnum)
+            kclass.instantiateEnum(json.getString(name))
           else
-            `class`.instantiate(json.getJsonObject(name))
+            kclass.instantiate(json.getJsonObject(name))
       }
       value.verifyOnlyNullIfParamAllows(this)
       value
     } catch (e: ClassCastException) {
         throw VertxKuickstartException(
           "${function.declaringClass.simpleName}.${name} " +
-              "expects type ${`class`.simpleName} " +
+              "expects type ${kclass.simpleName} " +
               "but was given the value: ${json.getValue(name)}", e)
     }
   }

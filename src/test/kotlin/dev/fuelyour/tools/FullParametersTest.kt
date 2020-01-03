@@ -8,7 +8,11 @@ import io.kotlintest.shouldBe
 import io.kotlintest.shouldThrow
 import io.kotlintest.specs.StringSpec
 import io.kotlintest.tables.row
+import io.mockk.every
+import io.mockk.mockk
 import java.lang.reflect.ParameterizedType
+import kotlin.reflect.KFunction
+import kotlin.reflect.KParameter
 import kotlin.reflect.full.declaredFunctions
 
 fun topLevelFunction(param1: Long, param2: Float) { }
@@ -174,5 +178,69 @@ class FullParametersTest : StringSpec({
       type.rawType shouldBe List::class.java
       type.actualTypeArguments[0] shouldBe listType
     }
+  }
+
+  "FullParameter.kclass will get the KClass" {
+    forall(
+      row(ctor, 0, String::class),
+      row(ctor, 1, Int::class),
+
+      // For class functions, the first parameter is an instance
+      // of the class
+      row(classFun, 0, TestClass::class),
+      row(classFun, 1, Double::class),
+      row(classFun, 2, Boolean::class),
+
+      // For extension functions, the first parameter is an instance
+      // of the class being extended
+      row(extensionFun, 0, String::class),
+      row(extensionFun, 1, Int::class),
+
+      row(topLevelFun, 0, Long::class),
+      row(topLevelFun, 1, Float::class),
+
+      row(companionFun, 0, Short::class),
+
+      row(singletonFun, 0, Char::class),
+      row(singletonFun, 1, Byte::class),
+
+      row(listCtor, 0, List::class),
+      row(listCtor, 1, List::class),
+
+      // For class functions, the first parameter is an instance
+      // of the class
+      row(listClassFun, 1, List::class),
+      row(listClassFun, 2, List::class),
+
+      // For extension functions, the first parameter is an instance
+      // of the class being extended
+      row(listExtensionFun, 0, List::class),
+      row(listExtensionFun, 1, List::class),
+
+      row(listTopLevelFun, 0, List::class),
+      row(listTopLevelFun, 1, List::class),
+
+      row(listCompanionFun, 0, List::class),
+
+      row(listSingletonFun, 0, List::class),
+      row(listSingletonFun, 1, List::class)
+    ) { method, paramIndex, kclass ->
+      method.fullParameters[paramIndex].kclass shouldBe kclass
+    }
+  }
+
+  "If fullParameters cannot find Java class info an exception is thrown" {
+    val kParam = mockk<KParameter>()
+    every { kParam.index } answers { 0 }
+
+    val kFunc = mockk<KFunction<*>>()
+    every { kFunc.parameters } answers { listOf(kParam) }
+    every { kFunc.toString() } returns "KFunctionMock"
+
+    val exception = shouldThrow<VertxKuickstartException> {
+      kFunc.fullParameters
+    }
+    exception.message shouldBe
+        "Unable to find Java reflection info for KFunctionMock"
   }
 })

@@ -18,7 +18,7 @@ class FullParameter internal constructor(
   val name: String
     get() = param.name ?: handleMissingParamName()
 
-  val `class`: KClass<*>
+  val kclass: KClass<*>
     get() = param.type.jvmErasure
 
   private fun handleMissingParamName(): Nothing {
