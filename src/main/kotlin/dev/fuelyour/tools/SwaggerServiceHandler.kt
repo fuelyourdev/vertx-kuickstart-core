@@ -88,12 +88,12 @@ class SwaggerServiceHandler(
     swaggerParams: List<Parameter>?
   ): Map<KParameter, Any?> {
     val params: MutableMap<KParameter, Any?> = mutableMapOf()
-    parameters.forEach { param ->
-      params[param] = when {
-        param.kind == KParameter.Kind.INSTANCE -> instance
-        param.isSubclassOf(RoutingContext::class) -> context
-        else -> buildPathOrQueryParam(swaggerParams, param, context)
-          ?: buildBodyParam(this, param, context)
+    fullParameters.forEach { fullParam ->
+      params[fullParam.param] = when {
+        fullParam.param.kind == KParameter.Kind.INSTANCE -> instance
+        fullParam.param.isSubclassOf(RoutingContext::class) -> context
+        else -> buildPathOrQueryParam(swaggerParams, fullParam.param, context)
+          ?: buildBodyParam(fullParam, context)
       }
     }
     return params
@@ -121,26 +121,24 @@ class SwaggerServiceHandler(
   }
 
   private fun buildBodyParam(
-    method: KFunction<*>,
-    param: KParameter,
+    fullParam: FullParameter,
     context: RoutingContext
   ): Any? {
-    return when (param.type.jvmErasure) {
+    return when (fullParam.param.type.jvmErasure) {
       JsonObject::class -> context.bodyAsJson
       JsonArray::class -> context.bodyAsJsonArray
-      List::class -> method.fullParameters[param.index]
-        .instantiateList(context.bodyAsJsonArray)
-      Map::class -> method.fullParameters[param.index]
-        .instantiateMap(context.bodyAsJson)
+      List::class -> fullParam.instantiateList(context.bodyAsJsonArray)
+      Map::class -> fullParam.instantiateMap(context.bodyAsJson)
       Field::class -> throw Exception(
         "Field not allowed as a controller function param"
       )
-      else -> param.type.classifier.let { it as KClass<*> }.let { kclass ->
-        when {
-          kclass.isData -> kclass.instantiate(context.bodyAsJson)
-          else -> null
+      else -> fullParam.param.type.classifier.let { it as KClass<*> }
+        .let { kclass ->
+          when {
+            kclass.isData -> kclass.instantiate(context.bodyAsJson)
+            else -> null
+          }
         }
-      }
     }
   }
 

@@ -13,7 +13,7 @@ import kotlin.reflect.KFunction
 import kotlin.reflect.full.primaryConstructor
 import kotlin.reflect.jvm.javaConstructor
 import kotlin.reflect.jvm.javaMethod
-
+// Todo better handle enums in all cases
 interface Deserializer {
   fun <T: Any> KClass<T>.instantiate(json: JsonObject?): T?
   fun FullParameter.instantiateList(arr: JsonArray?): List<Any?>?
@@ -49,12 +49,11 @@ class DeserializerImpl: Deserializer {
         Int::class -> json.getInteger(name)
         Long::class -> json.getLong(name)
         String::class -> json.getString(name)
-        Field::class -> type
-          .instantiateField(json, name)
-        List::class -> type
-          .instantiateList(json.getJsonArray(name))
-        Map::class -> type
-          .instantiateMap(json.getJsonObject(name))
+        Field::class -> type.instantiateField(json, name)
+        List::class -> type.instantiateList(json.getJsonArray(name))
+        Map::class -> type.instantiateMap(json.getJsonObject(name))
+        JsonObject::class -> json.getJsonObject(name)
+        JsonArray::class -> json.getJsonArray(name)
         else ->
           if (kclass.isEnum)
             kclass.instantiateEnum(json.getString(name))
@@ -80,7 +79,9 @@ class DeserializerImpl: Deserializer {
   }
 
   private fun <T: Any> KClass<T>.handleMissingPrimaryConstructor(): Nothing {
-    throw VertxKuickstartException("$simpleName is missing a primary constructor")
+    throw VertxKuickstartException(
+      "$simpleName is missing a primary constructor"
+    )
   }
 
   private val KClass<*>.isEnum: Boolean
@@ -124,12 +125,16 @@ class DeserializerImpl: Deserializer {
         Map::class -> range.map {
           genericType.instantiateMap(arr.getJsonObject(it))
         }
+        JsonObject::class -> range.map { arr.getJsonObject(it) }
+        JsonArray::class -> range.map { arr.getJsonArray(it) }
         else -> range.map { itemsKClass.instantiate(arr.getJsonObject(it)) }
       }
     }
   }
 
-  override fun FullParameter.instantiateMap(obj: JsonObject?): Map<String, Any?>? {
+  override fun FullParameter.instantiateMap(
+    obj: JsonObject?
+  ): Map<String, Any?>? {
     return type.instantiateMap(obj)
   }
 
@@ -155,6 +160,8 @@ class DeserializerImpl: Deserializer {
             genericType.instantiateList(obj.getJsonArray(key))
           Map::class -> map[key] =
             genericType.instantiateMap(obj.getJsonObject(key))
+          JsonObject::class -> map[key] = obj.getJsonObject(key)
+          JsonArray::class -> map[key] = obj.getJsonArray(key)
           else -> map[key] = itemsKClass.instantiate(obj.getJsonObject(key))
         }
       }
@@ -187,6 +194,8 @@ class DeserializerImpl: Deserializer {
           genericType.instantiateMap(arr.getJsonObject(pos)),
           true
         )
+        JsonObject::class -> Field(arr.getJsonObject(pos), true)
+        JsonArray::class -> Field(arr.getJsonArray(pos), true)
         else -> Field(
           itemsKClass.instantiate(
             arr.getJsonObject(
@@ -223,6 +232,11 @@ class DeserializerImpl: Deserializer {
           genericType.instantiateMap(json.getJsonObject(key)),
           json.containsKey(key)
         )
+        JsonObject::class -> Field(
+          json.getJsonObject(key),
+          json.containsKey(key)
+        )
+        JsonArray::class -> Field(json.getJsonArray(key), json.containsKey(key))
         else -> Field(
           itemsKClass.instantiate(json.getJsonObject(key)),
           json.containsKey(key)
