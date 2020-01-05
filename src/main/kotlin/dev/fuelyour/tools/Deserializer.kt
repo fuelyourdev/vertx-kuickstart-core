@@ -13,7 +13,7 @@ import kotlin.reflect.KFunction
 import kotlin.reflect.full.primaryConstructor
 import kotlin.reflect.jvm.javaConstructor
 import kotlin.reflect.jvm.javaMethod
-// Todo better handle enums in all cases
+
 interface Deserializer {
   fun <T: Any> KClass<T>.instantiate(json: JsonObject?): T?
   fun FullParameter.instantiateList(arr: JsonArray?): List<Any?>?
@@ -127,7 +127,12 @@ class DeserializerImpl: Deserializer {
         }
         JsonObject::class -> range.map { arr.getJsonObject(it) }
         JsonArray::class -> range.map { arr.getJsonArray(it) }
-        else -> range.map { itemsKClass.instantiate(arr.getJsonObject(it)) }
+        else ->
+          if (itemsKClass.isEnum) {
+            range.map { itemsKClass.instantiateEnum(arr.getString(it)) }
+          } else {
+            range.map { itemsKClass.instantiate(arr.getJsonObject(it)) }
+          }
       }
     }
   }
@@ -162,7 +167,12 @@ class DeserializerImpl: Deserializer {
             genericType.instantiateMap(obj.getJsonObject(key))
           JsonObject::class -> map[key] = obj.getJsonObject(key)
           JsonArray::class -> map[key] = obj.getJsonArray(key)
-          else -> map[key] = itemsKClass.instantiate(obj.getJsonObject(key))
+          else ->
+            if (itemsKClass.isEnum) {
+              map[key] = itemsKClass.instantiateEnum(obj.getString(key))
+            } else {
+              map[key] = itemsKClass.instantiate(obj.getJsonObject(key))
+            }
         }
       }
       map
@@ -196,13 +206,12 @@ class DeserializerImpl: Deserializer {
         )
         JsonObject::class -> Field(arr.getJsonObject(pos), true)
         JsonArray::class -> Field(arr.getJsonArray(pos), true)
-        else -> Field(
-          itemsKClass.instantiate(
-            arr.getJsonObject(
-              pos
-            )
-          ), true
-        )
+        else ->
+          if (itemsKClass.isEnum) {
+            Field(itemsKClass.instantiateEnum(arr.getString(pos)), true)
+          } else {
+            Field(itemsKClass.instantiate(arr.getJsonObject(pos)), true)
+          }
       }
     } ?: Field(arr.getValue(pos), true)
   }
@@ -223,7 +232,8 @@ class DeserializerImpl: Deserializer {
         Long::class -> Field(json.getLong(key), json.containsKey(key))
         String::class -> Field(json.getString(key), json.containsKey(key))
         Field::class -> throw VertxKuickstartException(
-          "Field of Field type not allowed")
+          "Field of Field type not allowed"
+        )
         List::class -> Field(
           genericType.instantiateList(json.getJsonArray(key)),
           json.containsKey(key)
@@ -237,10 +247,18 @@ class DeserializerImpl: Deserializer {
           json.containsKey(key)
         )
         JsonArray::class -> Field(json.getJsonArray(key), json.containsKey(key))
-        else -> Field(
-          itemsKClass.instantiate(json.getJsonObject(key)),
-          json.containsKey(key)
-        )
+        else ->
+          if (itemsKClass.isEnum) {
+            Field(
+              itemsKClass.instantiateEnum(json.getString(key)),
+              json.containsKey(key)
+            )
+          } else {
+            Field(
+              itemsKClass.instantiate(json.getJsonObject(key)),
+              json.containsKey(key)
+            )
+          }
       }
     }
   }
