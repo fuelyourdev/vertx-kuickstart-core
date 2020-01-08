@@ -118,7 +118,9 @@ class DeserializerImpl: Deserializer {
         Int::class -> range.map { arr.getInteger(it) }
         Long::class -> range.map { arr.getLong(it) }
         String::class -> range.map { arr.getString(it) }
-        Field::class -> range.map { genericType.instantiateField(arr, it) }
+        Field::class -> throw VertxKuickstartException(
+          "List of Field type not allowed"
+        )
         List::class -> range.map {
           genericType.instantiateList(arr.getJsonArray(it))
         }
@@ -177,43 +179,6 @@ class DeserializerImpl: Deserializer {
       }
       map
     }
-  }
-
-  private fun Type?.instantiateField(
-    arr: JsonArray,
-    pos: Int
-  ): Field<out Any?> {
-    return this?.let { type ->
-      val genericType = type.getGenericType(0)
-      when (val itemsKClass = genericType.kClass) {
-        ByteArray::class -> Field(arr.getBinary(pos), true)
-        Boolean::class -> Field(arr.getBoolean(pos), true)
-        Double::class -> Field(arr.getDouble(pos), true)
-        Float::class -> Field(arr.getFloat(pos), true)
-        Instant::class -> Field(arr.getInstant(pos), true)
-        Int::class -> Field(arr.getInteger(pos), true)
-        Long::class -> Field(arr.getLong(pos), true)
-        String::class -> Field(arr.getString(pos), true)
-        Field::class -> throw VertxKuickstartException(
-          "Field of Field type not allowed")
-        List::class -> Field(
-          genericType.instantiateList(arr.getJsonArray(pos)),
-          true
-        )
-        Map::class -> Field(
-          genericType.instantiateMap(arr.getJsonObject(pos)),
-          true
-        )
-        JsonObject::class -> Field(arr.getJsonObject(pos), true)
-        JsonArray::class -> Field(arr.getJsonArray(pos), true)
-        else ->
-          if (itemsKClass.isEnum) {
-            Field(itemsKClass.instantiateEnum(arr.getString(pos)), true)
-          } else {
-            Field(itemsKClass.instantiate(arr.getJsonObject(pos)), true)
-          }
-      }
-    } ?: Field(arr.getValue(pos), true)
   }
 
   private fun Type.instantiateField(
