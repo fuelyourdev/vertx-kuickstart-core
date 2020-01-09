@@ -7,7 +7,7 @@ import kotlin.reflect.KProperty1
 import kotlin.reflect.full.declaredMemberProperties
 
 data class Field<T>(
-  val value: T,
+  val value: T?,
   val present: Boolean
 )
 

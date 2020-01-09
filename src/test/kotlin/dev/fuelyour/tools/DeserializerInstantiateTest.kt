@@ -6,7 +6,9 @@ import io.kotlintest.should
 import io.kotlintest.shouldBe
 import io.kotlintest.shouldThrow
 import io.kotlintest.specs.StringSpec
+import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
+import io.vertx.kotlin.core.json.jsonArrayOf
 import io.vertx.kotlin.core.json.jsonObjectOf
 import java.lang.ClassCastException
 import java.time.Instant
@@ -39,7 +41,10 @@ class DeserializerInstantiateTest :
         val param8: Field<Int>,
         val param9: List<String>,
         val param10: Map<String, Double>,
-        val param11: LowerClass
+        val param11: JsonObject,
+        val param12: JsonArray,
+        val param13: MyEnum,
+        val param14: LowerClass
       )
 
       val instant = Instant.now()
@@ -54,7 +59,10 @@ class DeserializerInstantiateTest :
         .put("param8", 9)
         .put("param9", listOf("Test", "Strings"))
         .put("param10", jsonObjectOf("key" to 11.0))
-        .put("param11", jsonObjectOf("param1" to 12L))
+        .put("param11", jsonObjectOf("someKey" to "someValue"))
+        .put("param12", jsonArrayOf("val1", "val2"))
+        .put("param13", MyEnum.MyValue1)
+        .put("param14", jsonObjectOf("param1" to 12L))
 
       val expected = UpperClass(
         true,
@@ -67,12 +75,41 @@ class DeserializerInstantiateTest :
         Field(9, true),
         listOf("Test", "Strings"),
         mapOf("key" to 11.0),
+        jsonObjectOf("someKey" to "someValue"),
+        jsonArrayOf("val1", "val2"),
+        MyEnum.MyValue1,
         LowerClass(12L)
       )
 
       val result = UpperClass::class.instantiate(json)
 
       result shouldBe expected
+    }
+
+    "instantiate can handle byte array params" {
+      data class MyClass(val bytes: ByteArray) {
+
+        override fun equals(other: Any?): Boolean {
+          if (this === other) return true
+          if (javaClass != other?.javaClass) return false
+
+          other as MyClass
+
+          if (!bytes.contentEquals(other.bytes)) return false
+
+          return true
+        }
+
+        override fun hashCode(): Int {
+          return bytes.contentHashCode()
+        }
+
+      }
+
+      val json = jsonObjectOf("bytes" to ByteArray(1) {i -> i.toByte()})
+      val expected = MyClass(ByteArray(1) {i -> i.toByte()})
+
+      MyClass::class.instantiate(json) shouldBe expected
     }
 
     "instantiate sets param to null if not in json" {
@@ -92,7 +129,10 @@ class DeserializerInstantiateTest :
         val param8: Field<Int?>,
         val param9: List<String>?,
         val param10: Map<String, Double>?,
-        val param11: LowerClass?
+        val param11: JsonObject?,
+        val param12: JsonArray?,
+        val param13: MyEnum?,
+        val param14: LowerClass?
       )
 
       val json = JsonObject()
@@ -108,6 +148,9 @@ class DeserializerInstantiateTest :
         Field(null, false),
         null,
         null,
+        null,
+        null,
+        null,
         null
       )
 
@@ -118,9 +161,9 @@ class DeserializerInstantiateTest :
 
     "A Field param distinguishes between missing params and explicit nulls" {
       data class MyClass(
-        val param1: Field<String?>,
-        val param2: Field<String?>,
-        val param3: Field<String?>
+        val param1: Field<String>,
+        val param2: Field<String>,
+        val param3: Field<String>
       )
 
       val json = jsonObjectOf(
@@ -164,32 +207,6 @@ class DeserializerInstantiateTest :
       data class MyClass(val myParam: Int)
 
       MyClass::class.instantiate(null) shouldBe null
-    }
-
-    "instantiate can handle byte array params" {
-      data class MyClass(val bytes: ByteArray) {
-
-        override fun equals(other: Any?): Boolean {
-          if (this === other) return true
-          if (javaClass != other?.javaClass) return false
-
-          other as MyClass
-
-          if (!bytes.contentEquals(other.bytes)) return false
-
-          return true
-        }
-
-        override fun hashCode(): Int {
-          return bytes.contentHashCode()
-        }
-
-      }
-
-      val json = jsonObjectOf("bytes" to ByteArray(0))
-      val expected = MyClass(ByteArray(0))
-
-      MyClass::class.instantiate(json) shouldBe expected
     }
 
     "instantiate expects the class to have a primary constructor" {

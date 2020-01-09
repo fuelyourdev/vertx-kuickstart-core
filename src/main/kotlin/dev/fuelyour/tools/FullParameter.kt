@@ -5,21 +5,21 @@ import java.lang.reflect.Type
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
 import kotlin.reflect.KParameter
-import kotlin.reflect.full.instanceParameter
-import kotlin.reflect.jvm.javaConstructor
-import kotlin.reflect.jvm.javaMethod
+import kotlin.reflect.jvm.javaType
 import kotlin.reflect.jvm.jvmErasure
 
 class FullParameter internal constructor(
   val function: KFunction<*>,
-  val param: KParameter,
-  val type: Type
+  val param: KParameter
 ) {
   val name: String
     get() = param.name ?: handleMissingParamName()
 
   val kclass: KClass<*>
     get() = param.type.jvmErasure
+
+  val type: Type
+    get() = param.type.javaType
 
   private fun handleMissingParamName(): Nothing {
     throw VertxKuickstartException(
@@ -29,21 +29,6 @@ class FullParameter internal constructor(
 
 val KFunction<*>.fullParameters
   get() = parameters.map {
-    FullParameter(this, it, getTypeForParamAt(it.index))
+    FullParameter(this, it)
   }
 
-private fun KFunction<*>.getTypeForParamAt(index: Int): Type {
-  return javaConstructor?.let {
-    it.genericParameterTypes[index]
-  } ?: javaMethod?.let {
-    if (instanceParameter != null) {
-      when (index) {
-        0 -> it.declaringClass
-        else -> it.genericParameterTypes[index - 1]
-      }
-    } else {
-      it.genericParameterTypes[index]
-    }
-  } ?: throw VertxKuickstartException(
-    "Unable to find Java reflection info for $this")
-}

@@ -132,13 +132,7 @@ class SwaggerServiceHandler(
       Field::class -> throw Exception(
         "Field not allowed as a controller function param"
       )
-      else -> fullParam.param.type.classifier.let { it as KClass<*> }
-        .let { kclass ->
-          when {
-            kclass.isData -> kclass.instantiate(context.bodyAsJson)
-            else -> null
-          }
-        }
+      else -> fullParam.kclass.instantiate(context.bodyAsJson)
     }
   }
 
