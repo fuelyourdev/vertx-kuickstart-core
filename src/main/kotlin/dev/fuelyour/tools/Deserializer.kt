@@ -251,14 +251,17 @@ class DeserializerImpl: Deserializer {
     }.let { Class.forName(it).kotlin }
 }
 
-inline fun <reified T> type(): FullType<T> {
-  val type = object: TypeWrapper<T>() {}::class.java
+inline fun <reified T> type(): FullType<T> =
+  type(object : TypeWrapper<T>() {}::class.java)
+
+fun <T> type(typeWrapperClass: Class<out TypeWrapper<T>>): FullType<T> {
+  val type = typeWrapperClass
     .let { it.genericSuperclass as ParameterizedType }
     .actualTypeArguments[0]
   return FullType(type)
 }
 
 @Suppress("unused")
-class FullType<T>(val type: Type)
+class FullType<T> internal constructor(val type: Type)
 
 open class TypeWrapper<T>
