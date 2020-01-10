@@ -17,6 +17,7 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import java.lang.reflect.InvocationTargetException
+import java.time.Instant
 import kotlin.Exception
 import kotlin.reflect.KClass
 import kotlin.reflect.KParameter
@@ -124,13 +125,21 @@ class SwaggerServiceHandler(
     fullParam: FullParameter,
     context: RoutingContext
   ): Any? {
-    return when (fullParam.param.type.jvmErasure) {
+    return when (val kclass = fullParam.kclass) {
       JsonObject::class -> context.bodyAsJson
       JsonArray::class -> context.bodyAsJsonArray
-      List::class -> fullParam.instantiateList(context.bodyAsJsonArray)
-      Map::class -> fullParam.instantiateMap(context.bodyAsJson)
+      List::class -> fullParam.type.instantiateList(context.bodyAsJsonArray)
+      Map::class -> fullParam.type.instantiateMap(context.bodyAsJson)
+      ByteArray::class,
+      Boolean::class,
+      Double::class,
+      Float::class,
+      Instant::class,
+      Int::class,
+      Long::class,
+      String::class,
       Field::class -> throw Exception(
-        "Field not allowed as a controller function param"
+        "${kclass.simpleName} not allowed as a controller function param"
       )
       else -> fullParam.kclass.instantiate(context.bodyAsJson)
     }

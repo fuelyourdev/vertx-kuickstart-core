@@ -14,10 +14,15 @@ import kotlin.reflect.full.primaryConstructor
 import kotlin.reflect.jvm.javaConstructor
 import kotlin.reflect.jvm.javaMethod
 
+typealias ListType<T> = FullType<List<T>>
+typealias MapType<T> = FullType<Map<String, T>>
+
 interface Deserializer {
   fun <T: Any> KClass<T>.instantiate(json: JsonObject?): T?
-  fun FullParameter.instantiateList(arr: JsonArray?): List<Any?>?
-  fun FullParameter.instantiateMap(obj: JsonObject?): Map<String, Any?>?
+  fun <T: Any> ListType<T>.instantiateList(arr: JsonArray?): List<T?>?
+  fun Type.instantiateList(arr: JsonArray?): List<Any?>?
+  fun <T: Any> MapType<T>.instantiateMap(obj: JsonObject?): Map<String, T?>?
+  fun Type.instantiateMap(obj: JsonObject?): Map<String, Any?>?
 }
 
 class DeserializerImpl: Deserializer {
@@ -100,11 +105,13 @@ class DeserializerImpl: Deserializer {
     }
   }
 
-  override fun FullParameter.instantiateList(arr: JsonArray?): List<Any?>? {
-    return type.instantiateList(arr)
-  }
+  @Suppress("UNCHECKED_CAST")
+  override fun <T: Any> ListType<T>.instantiateList(
+    arr: JsonArray?
+  ): List<T?>? =
+    this.type.instantiateList(arr) as List<T?>
 
-  private fun Type.instantiateList(arr: JsonArray?): List<Any?>? {
+  override fun Type.instantiateList(arr: JsonArray?): List<Any?>? {
     if (arr == null) return null
     val range = 0 until arr.size()
     return this.let { type ->
@@ -139,13 +146,13 @@ class DeserializerImpl: Deserializer {
     }
   }
 
-  override fun FullParameter.instantiateMap(
+  @Suppress("UNCHECKED_CAST")
+  override fun <T: Any> MapType<T>.instantiateMap(
     obj: JsonObject?
-  ): Map<String, Any?>? {
-    return type.instantiateMap(obj)
-  }
+  ): Map<String, T?>? =
+    type.instantiateMap(obj) as Map<String, T?>?
 
-  private fun Type.instantiateMap(obj: JsonObject?): Map<String, Any?>? {
+  override fun Type.instantiateMap(obj: JsonObject?): Map<String, Any?>? {
     if (obj == null) return null
     return this.let { type ->
       val genericType = type.getGenericType(1)
@@ -244,10 +251,14 @@ class DeserializerImpl: Deserializer {
     }.let { Class.forName(it).kotlin }
 }
 
-inline fun <reified T> type(): Type {
-  return object: TypeWrapper<T>() {}::class.java
+inline fun <reified T> type(): FullType<T> {
+  val type = object: TypeWrapper<T>() {}::class.java
     .let { it.genericSuperclass as ParameterizedType }
     .actualTypeArguments[0]
+  return FullType(type)
 }
+
+@Suppress("unused")
+class FullType<T>(val type: Type)
 
 open class TypeWrapper<T>

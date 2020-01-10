@@ -13,8 +13,6 @@ import io.vertx.kotlin.core.json.jsonObjectOf
 import java.lang.ClassCastException
 import java.time.Instant
 
-
-@Suppress("unused")
 enum class MyEnum {
   MyValue1,
   MyValue2
@@ -61,7 +59,7 @@ class DeserializerInstantiateTest :
         .put("param10", jsonObjectOf("key" to 11.0))
         .put("param11", jsonObjectOf("someKey" to "someValue"))
         .put("param12", jsonArrayOf("val1", "val2"))
-        .put("param13", MyEnum.MyValue1)
+        .put("param13", MyEnum.MyValue2)
         .put("param14", jsonObjectOf("param1" to 12L))
 
       val expected = UpperClass(
@@ -77,7 +75,7 @@ class DeserializerInstantiateTest :
         mapOf("key" to 11.0),
         jsonObjectOf("someKey" to "someValue"),
         jsonArrayOf("val1", "val2"),
-        MyEnum.MyValue1,
+        MyEnum.MyValue2,
         LowerClass(12L)
       )
 
