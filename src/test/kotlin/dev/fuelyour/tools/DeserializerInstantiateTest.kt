@@ -264,5 +264,7 @@ class DeserializerInstantiateTest :
           "but was given the value: 1"
       exception.cause should beInstanceOf<ClassCastException>()
     }
+
+    //todo test a custom class with generics
   }
 }

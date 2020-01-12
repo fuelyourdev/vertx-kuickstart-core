@@ -248,7 +248,10 @@ class DeserializerImpl: Deserializer {
     get() = when (this) {
       is ParameterizedType -> rawType.typeName
       else -> typeName
-    }.let { Class.forName(it).kotlin }
+    }.let { when (it) {
+      "byte[]" -> ByteArray::class
+      else -> Class.forName(it).kotlin
+    } }
 }
 
 inline fun <reified T> type(): FullType<T> =
