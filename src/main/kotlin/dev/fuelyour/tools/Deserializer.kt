@@ -109,7 +109,7 @@ class DeserializerImpl: Deserializer {
   override fun <T: Any> ListType<T>.instantiateList(
     arr: JsonArray?
   ): List<T?>? =
-    this.type.instantiateList(arr) as List<T?>
+    this.type.instantiateList(arr) as List<T?>?
 
   override fun Type.instantiateList(arr: JsonArray?): List<Any?>? {
     if (arr == null) return null

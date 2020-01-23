@@ -1,8 +1,10 @@
 package dev.fuelyour.tools
 
+import dev.fuelyour.exceptions.VertxKuickstartException
 import io.kotlintest.data.forall
 import io.kotlintest.shouldBe
 import io.kotlintest.shouldNotBe
+import io.kotlintest.shouldThrow
 import io.kotlintest.specs.StringSpec
 import io.kotlintest.tables.row
 import io.vertx.core.json.JsonArray
@@ -102,8 +104,22 @@ class DeserializerInstantiateListTest :
       }
     }
 
-    //todo test null
-    //todo test Field
+    "instantiateList will return null when it is given null" {
+      val json: JsonArray? = null
+
+      val result = type<List<String>>().instantiateList(json)
+
+      result shouldBe null
+    }
+
+    "instantiateList will not instantiate a list of Field type" {
+      val json = jsonArrayOf("Test", null)
+
+      val exception = shouldThrow<VertxKuickstartException> {
+        type<List<Field<String>>>().instantiateList(json)
+      }
+      exception.message shouldBe "List of Field type not allowed"
+    }
 
     @Suppress("NAME_SHADOWING")
     "instantiateList can instantiate a list of ByteArrays" {
