@@ -1,6 +1,7 @@
 package dev.fuelyour.repositories
 
 import dev.fuelyour.exceptions.ModelNotFoundException
+import dev.fuelyour.tools.*
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.sqlclient.preparedQueryAwait
@@ -8,17 +9,12 @@ import io.vertx.sqlclient.SqlClient
 import io.vertx.sqlclient.Tuple
 import kotlin.reflect.KClass
 
-import dev.fuelyour.tools.Deserializer
-import dev.fuelyour.tools.DeserializerImpl
-import dev.fuelyour.tools.Serializer
-import dev.fuelyour.tools.SerializerImpl
-
 interface AllQuery<T: Any> {
   companion object {
     inline fun <reified T: Any> impl(
       schema: String, table: String
     ): AllQuery<T> =
-      AllQueryImpl(schema, table, T::class, DeserializerImpl())
+      AllQueryImpl(schema, table, type(), DeserializerImpl())
   }
   suspend fun all(connection: SqlClient): List<T>
 }
@@ -26,7 +22,7 @@ interface AllQuery<T: Any> {
 class AllQueryImpl<T: Any>(
   schema: String,
   table: String,
-  private val kclass: KClass<T>,
+  private val type: FullType<T>,
   deserializer: Deserializer
 ): AllQuery<T>, Deserializer by deserializer {
 
@@ -39,7 +35,7 @@ class AllQueryImpl<T: Any>(
         val json = row.getValue("data")
           .let { it as JsonObject }
           .put("id", row.getString("id"))
-        kclass.instantiate(json)
+        type.instantiate(json)
       }.requireNoNulls()
   }
 }
@@ -49,7 +45,7 @@ interface FindQuery<T: Any> {
     inline fun <reified T: Any> impl(
       schema: String, table: String
     ): FindQuery<T> =
-      FindQueryImpl(schema, table, T::class, DeserializerImpl())
+      FindQueryImpl(schema, table, type(), DeserializerImpl())
   }
   suspend fun find(id: String, connection: SqlClient): T
 }
@@ -57,7 +53,7 @@ interface FindQuery<T: Any> {
 class FindQueryImpl<T: Any>(
   schema: String,
   table: String,
-  private val kclass: KClass<T>,
+  private val type: FullType<T>,
   deserializer: Deserializer
 ): FindQuery<T>, Deserializer by deserializer {
 
@@ -73,7 +69,7 @@ class FindQueryImpl<T: Any>(
         val json = row.getValue("data")
           .let { it as JsonObject }
           .put("id", row.getString("id"))
-        kclass.instantiate(json)
+        type.instantiate(json)
       }.firstOrNull()
       ?: throw ModelNotFoundException("No object found with ID", JsonArray(id))
   }
@@ -87,7 +83,7 @@ interface InsertQuery<T: Any, R: Any> {
       InsertQueryImpl(
         schema,
         table,
-        R::class,
+        type(),
         SerializerImpl(),
         DeserializerImpl()
       )
@@ -98,7 +94,7 @@ interface InsertQuery<T: Any, R: Any> {
 class InsertQueryImpl<T: Any, R: Any>(
   schema: String,
   table: String,
-  private val kclass: KClass<R>,
+  private val type: FullType<R>,
   serializer: Serializer,
   deserializer: Deserializer
 ): InsertQuery<T, R>, Serializer by serializer, Deserializer by deserializer {
@@ -113,7 +109,7 @@ class InsertQueryImpl<T: Any, R: Any>(
         val json = row.getValue("data")
           .let { it as JsonObject }
           .put("id", row.getString("id"))
-        kclass.instantiate(json)
+        type.instantiate(json)
       }.requireNoNulls().first()
   }
 }
@@ -126,7 +122,7 @@ interface UpdateQuery<T: Any, R: Any> {
       UpdateQueryImpl(
         schema,
         table,
-        R::class,
+        type(),
         SerializerImpl(),
         DeserializerImpl()
       )
@@ -137,7 +133,7 @@ interface UpdateQuery<T: Any, R: Any> {
 class UpdateQueryImpl<T: Any, R: Any>(
   schema: String,
   table: String,
-  private val kclass: KClass<R>,
+  private val type: FullType<R>,
   serializer: Serializer,
   deserializer: Deserializer
 ): UpdateQuery<T, R>, Serializer by serializer, Deserializer by deserializer {
@@ -156,7 +152,7 @@ class UpdateQueryImpl<T: Any, R: Any>(
         val json = row.getValue("data")
           .let { it as JsonObject }
           .put("id", row.getString("id"))
-        kclass.instantiate(json)
+        type.instantiate(json)
       }.requireNoNulls().first()
   }
 }

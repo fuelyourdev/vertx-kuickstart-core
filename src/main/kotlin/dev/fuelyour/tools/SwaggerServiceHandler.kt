@@ -141,7 +141,7 @@ class SwaggerServiceHandler(
       Field::class -> throw Exception(
         "${kclass.simpleName} not allowed as a controller function param"
       )
-      else -> fullParam.kclass.instantiate(context.bodyAsJson)
+      else -> fullParam.type.instantiate(context.bodyAsJson)
     }
   }
 
