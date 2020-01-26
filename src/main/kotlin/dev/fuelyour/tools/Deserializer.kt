@@ -13,12 +13,16 @@ import kotlin.reflect.KFunction
 import kotlin.reflect.full.primaryConstructor
 import kotlin.reflect.jvm.javaConstructor
 import kotlin.reflect.jvm.javaMethod
+import kotlin.reflect.jvm.javaType
 
 typealias ListType<T> = FullType<List<T>>
 typealias MapType<T> = FullType<Map<String, T>>
 
 interface Deserializer {
+  //todo potentially remove KClass.instantiate
   fun <T: Any> KClass<T>.instantiate(json: JsonObject?): T?
+  fun <T: Any> FullType<T>.instantiate(json: JsonObject?): T?
+  fun Type.instantiate(json: JsonObject?): Any?
   fun <T: Any> ListType<T>.instantiateList(arr: JsonArray?): List<T?>?
   fun Type.instantiateList(arr: JsonArray?): List<Any?>?
   fun <T: Any> MapType<T>.instantiateMap(obj: JsonObject?): Map<String, T?>?
@@ -41,9 +45,34 @@ class DeserializerImpl: Deserializer {
     return ctor.call(*params.toTypedArray())
   }
 
+  @Suppress("UNCHECKED_CAST")
+  override fun <T: Any> FullType<T>.instantiate(json: JsonObject?): T? =
+    type.instantiate(json) as T?
+
+  override fun Type.instantiate(json: JsonObject?): Any? {
+    if (json == null) return null
+    val genericsMap = kClass.java.typeParameters.mapIndexed { index, type ->
+      type.name to let { it as ParameterizedType }.actualTypeArguments[index]
+    }.toMap()
+    val ctor = kClass.primaryConstructor
+      ?: kClass.handleMissingPrimaryConstructor()
+    val params = ctor.fullParameters.map { param ->
+      val typeName = param.param.type.javaType.typeName
+      if (typeName in genericsMap.keys) {
+        param.instantiate(json, genericsMap[typeName])
+      } else {
+        param.instantiate(json)
+      }
+    }
+    return ctor.call(*params.toTypedArray())
+  }
+
   private fun FullParameter.instantiate(
-    json: JsonObject
+    json: JsonObject,
+    typeOverride: Type? = null
   ): Any? {
+    val type = typeOverride ?: type
+    val kclass = typeOverride?.kClass ?: kclass
     return try {
       val value = when (kclass) {
         ByteArray::class -> json.getBinary(name)
@@ -63,15 +92,19 @@ class DeserializerImpl: Deserializer {
           if (kclass.isEnum)
             kclass.instantiateEnum(json.getString(name))
           else
-            kclass.instantiate(json.getJsonObject(name))
+            type.instantiate(json.getJsonObject(name))
       }
       value.verifyOnlyNullIfParamAllows(this)
       value
     } catch (e: ClassCastException) {
-        throw VertxKuickstartException(
-          "${function.declaringClass.simpleName}.${name} " +
-              "expects type ${kclass.simpleName} " +
-              "but was given the value: ${json.getValue(name)}", e)
+      var value = json.getValue(name)
+      if (value is String) {
+        value = "\"$value\""
+      }
+      throw VertxKuickstartException(
+        "${function.declaringClass.simpleName}.${name} " +
+            "expects type ${kclass.simpleName} " +
+            "but was given the value: $value", e)
     }
   }
 
@@ -140,7 +173,7 @@ class DeserializerImpl: Deserializer {
           if (itemsKClass.isEnum) {
             range.map { itemsKClass.instantiateEnum(arr.getString(it)) }
           } else {
-            range.map { itemsKClass.instantiate(arr.getJsonObject(it)) }
+            range.map { genericType.instantiate(arr.getJsonObject(it)) }
           }
       }
     }
@@ -180,7 +213,7 @@ class DeserializerImpl: Deserializer {
             if (itemsKClass.isEnum) {
               map[key] = itemsKClass.instantiateEnum(obj.getString(key))
             } else {
-              map[key] = itemsKClass.instantiate(obj.getJsonObject(key))
+              map[key] = genericType.instantiate(obj.getJsonObject(key))
             }
         }
       }
@@ -227,7 +260,7 @@ class DeserializerImpl: Deserializer {
             )
           } else {
             Field(
-              itemsKClass.instantiate(json.getJsonObject(key)),
+              genericType.instantiate(json.getJsonObject(key)),
               json.containsKey(key)
             )
           }

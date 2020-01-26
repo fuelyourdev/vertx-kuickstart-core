@@ -188,7 +188,7 @@ class DeserializerInstantiateTest :
         MyClass::class.instantiate(json)
       }
       exception.message shouldBe "MyClass.myParam expects type Int " +
-          "but was given the value: String"
+          "but was given the value: \"String\""
       exception.cause should beInstanceOf<ClassCastException>()
     }
 
@@ -265,6 +265,40 @@ class DeserializerInstantiateTest :
       exception.cause should beInstanceOf<ClassCastException>()
     }
 
-    //todo test a custom class with generics
+    "instantiate for custom class with generics shouldn't loose generics" {
+      data class ClassWithGenerics<T>(val value: T)
+      data class OuterClass(
+        val inner1: ClassWithGenerics<String>,
+        val inner2: ClassWithGenerics<Int>,
+        val inner3: ClassWithGenerics<List<Boolean>>,
+        val inner4: ClassWithGenerics<List<ClassWithGenerics<Int>>>
+      )
+
+      val json = jsonObjectOf(
+        "inner1" to jsonObjectOf("value" to "string"),
+        "inner2" to jsonObjectOf("value" to 1),
+        "inner3" to jsonObjectOf("value" to jsonArrayOf(true, false)),
+        "inner4" to jsonObjectOf(
+          "value" to jsonArrayOf(jsonObjectOf("value" to 1))
+        )
+      )
+
+      val expected = OuterClass(
+        ClassWithGenerics("string"),
+        ClassWithGenerics(1),
+        ClassWithGenerics(listOf(true, false)),
+        ClassWithGenerics(listOf(ClassWithGenerics(1)))
+      )
+
+      val result = OuterClass::class.instantiate(json)
+
+      result shouldBe expected
+    }
+
+    //todo test error messages for custom class generics
+
+    //todo test vararg
+
+    //todo test array parameters
   }
 }
