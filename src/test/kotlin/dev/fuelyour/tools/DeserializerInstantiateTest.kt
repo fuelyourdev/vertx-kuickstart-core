@@ -79,7 +79,7 @@ class DeserializerInstantiateTest :
         LowerClass(12L)
       )
 
-      val result = UpperClass::class.instantiate(json)
+      val result = type<UpperClass>().instantiate(json)
 
       result shouldBe expected
     }
@@ -107,7 +107,7 @@ class DeserializerInstantiateTest :
       val json = jsonObjectOf("bytes" to ByteArray(1) {i -> i.toByte()})
       val expected = MyClass(ByteArray(1) {i -> i.toByte()})
 
-      MyClass::class.instantiate(json) shouldBe expected
+      type<MyClass>().instantiate(json) shouldBe expected
     }
 
     "instantiate sets param to null if not in json" {
@@ -152,7 +152,7 @@ class DeserializerInstantiateTest :
         null
       )
 
-      val result = UpperClass::class.instantiate(json)
+      val result = type<UpperClass>().instantiate(json)
 
       result shouldBe expected
     }
@@ -175,7 +175,7 @@ class DeserializerInstantiateTest :
         Field(null, false)
       )
 
-      val result = MyClass::class.instantiate(json)
+      val result = type<MyClass>().instantiate(json)
 
       result shouldBe expected
     }
@@ -185,7 +185,7 @@ class DeserializerInstantiateTest :
 
       val json = jsonObjectOf("myParam" to "String")
       val exception = shouldThrow<VertxKuickstartException> {
-        MyClass::class.instantiate(json)
+        type<MyClass>().instantiate(json)
       }
       exception.message shouldBe "MyClass.myParam expects type Int " +
           "but was given the value: \"String\""
@@ -196,7 +196,7 @@ class DeserializerInstantiateTest :
       data class ParamNotNullable(val param1: Int)
 
       val exception = shouldThrow<VertxKuickstartException> {
-        ParamNotNullable::class.instantiate(JsonObject())
+        type<ParamNotNullable>().instantiate(JsonObject())
       }
       exception.message shouldBe "ParamNotNullable.param1 cannot be null"
     }
@@ -204,7 +204,7 @@ class DeserializerInstantiateTest :
     "instantiate returns null if the json is null" {
       data class MyClass(val myParam: Int)
 
-      MyClass::class.instantiate(null) shouldBe null
+      type<MyClass>().instantiate(null) shouldBe null
     }
 
     "instantiate expects the class to have a primary constructor" {
@@ -217,7 +217,7 @@ class DeserializerInstantiateTest :
       }
 
       val exception = shouldThrow<VertxKuickstartException> {
-        NoPrimaryCtor::class.instantiate(JsonObject())
+        type<NoPrimaryCtor>().instantiate(JsonObject())
       }
       exception.message shouldBe "NoPrimaryCtor is missing a primary " +
           "constructor"
@@ -229,7 +229,7 @@ class DeserializerInstantiateTest :
       val json = jsonObjectOf("myEnum" to "MyValue1")
       val expected = ClassWithEnum(MyEnum.MyValue1)
 
-      ClassWithEnum::class.instantiate(json) shouldBe expected
+      type<ClassWithEnum>().instantiate(json) shouldBe expected
     }
 
     "instantiate can handle null enum params" {
@@ -238,7 +238,7 @@ class DeserializerInstantiateTest :
       val json = jsonObjectOf("myEnum" to null)
       val expected = ClassWithEnum(null)
 
-      ClassWithEnum::class.instantiate(json) shouldBe expected
+      type<ClassWithEnum>().instantiate(json) shouldBe expected
     }
 
     "instantiate for enum with a value not in the enum throws an exception" {
@@ -247,7 +247,7 @@ class DeserializerInstantiateTest :
       val json = jsonObjectOf("myEnum" to "NotInEnum")
 
       val exception = shouldThrow<VertxKuickstartException> {
-        ClassWithEnum::class.instantiate(json)
+        type<ClassWithEnum>().instantiate(json)
       }
       exception.message shouldBe "Enum MyEnum does not contain value: NotInEnum"
     }
@@ -258,7 +258,7 @@ class DeserializerInstantiateTest :
       val json = jsonObjectOf("myEnum" to 1)
 
       val exception = shouldThrow<VertxKuickstartException> {
-        ClassWithEnum::class.instantiate(json)
+        type<ClassWithEnum>().instantiate(json)
       }
       exception.message shouldBe "ClassWithEnum.myEnum expects type MyEnum " +
           "but was given the value: 1"
@@ -274,23 +274,25 @@ class DeserializerInstantiateTest :
         val inner4: ClassWithGenerics<List<ClassWithGenerics<Int>>>
       )
 
-      val json = jsonObjectOf(
+      val json = jsonObjectOf("value" to jsonObjectOf(
         "inner1" to jsonObjectOf("value" to "string"),
         "inner2" to jsonObjectOf("value" to 1),
         "inner3" to jsonObjectOf("value" to jsonArrayOf(true, false)),
         "inner4" to jsonObjectOf(
           "value" to jsonArrayOf(jsonObjectOf("value" to 1))
         )
+      ) )
+
+      val expected = ClassWithGenerics(
+        OuterClass(
+          ClassWithGenerics("string"),
+          ClassWithGenerics(1),
+          ClassWithGenerics(listOf(true, false)),
+          ClassWithGenerics(listOf(ClassWithGenerics(1)))
+        )
       )
 
-      val expected = OuterClass(
-        ClassWithGenerics("string"),
-        ClassWithGenerics(1),
-        ClassWithGenerics(listOf(true, false)),
-        ClassWithGenerics(listOf(ClassWithGenerics(1)))
-      )
-
-      val result = OuterClass::class.instantiate(json)
+      val result = type<ClassWithGenerics<OuterClass>>().instantiate(json)
 
       result shouldBe expected
     }

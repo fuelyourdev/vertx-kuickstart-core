@@ -29,14 +29,18 @@ dependencies {
   implementation("org.reflections:reflections:0.9.11")
   implementation("org.apache.commons:commons-collections4:4.0")
 
-  testImplementation("io.kotlintest:kotlintest-runner-junit5:3.3.2")
   testImplementation("io.mockk:mockk:1.9.3")
+  testImplementation("io.kotlintest:kotlintest-runner-junit5:3.3.2")
 }
 
-tasks.withType<KotlinCompile> {
-    kotlinOptions.jvmTarget = "1.8"
-}
-
-tasks.getting(Test::class) {
-  useJUnitPlatform { }
+tasks {
+  compileKotlin {
+    kotlinOptions.jvmTarget = "11"
+  }
+  compileTestKotlin {
+    kotlinOptions.jvmTarget = "11"
+  }
+  test {
+    useJUnitPlatform()
+  }
 }

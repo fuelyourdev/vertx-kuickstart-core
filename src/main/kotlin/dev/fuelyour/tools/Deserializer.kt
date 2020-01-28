@@ -19,8 +19,6 @@ typealias ListType<T> = FullType<List<T>>
 typealias MapType<T> = FullType<Map<String, T>>
 
 interface Deserializer {
-  //todo potentially remove KClass.instantiate
-  fun <T: Any> KClass<T>.instantiate(json: JsonObject?): T?
   fun <T: Any> FullType<T>.instantiate(json: JsonObject?): T?
   fun Type.instantiate(json: JsonObject?): Any?
   fun <T: Any> ListType<T>.instantiateList(arr: JsonArray?): List<T?>?
@@ -37,13 +35,6 @@ class DeserializerImpl: Deserializer {
         ?: javaMethod?.declaringClass
         ?: throw VertxKuickstartException(
           "Unable to find Java reflection info for $this")
-
-  override fun <T: Any> KClass<T>.instantiate(json: JsonObject?): T? {
-    if (json == null) return null
-    val ctor = primaryConstructor ?: handleMissingPrimaryConstructor()
-    val params = ctor.fullParameters.map { param -> param.instantiate(json) }
-    return ctor.call(*params.toTypedArray())
-  }
 
   @Suppress("UNCHECKED_CAST")
   override fun <T: Any> FullType<T>.instantiate(json: JsonObject?): T? =

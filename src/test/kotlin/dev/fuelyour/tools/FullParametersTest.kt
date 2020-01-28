@@ -8,11 +8,7 @@ import io.kotlintest.shouldBe
 import io.kotlintest.shouldThrow
 import io.kotlintest.specs.StringSpec
 import io.kotlintest.tables.row
-import io.mockk.every
-import io.mockk.mockk
 import java.lang.reflect.ParameterizedType
-import kotlin.reflect.KFunction
-import kotlin.reflect.KParameter
 import kotlin.reflect.full.declaredFunctions
 
 fun topLevelFunction(param1: Long, param2: Float) { }
@@ -227,20 +223,5 @@ class FullParametersTest : StringSpec({
     ) { method, paramIndex, kclass ->
       method.fullParameters[paramIndex].kclass shouldBe kclass
     }
-  }
-
-  "If fullParameters cannot find Java class info an exception is thrown" {
-    val kParam = mockk<KParameter>()
-    every { kParam.index } answers { 0 }
-
-    val kFunc = mockk<KFunction<*>>()
-    every { kFunc.parameters } answers { listOf(kParam) }
-    every { kFunc.toString() } returns "KFunctionMock"
-
-    val exception = shouldThrow<VertxKuickstartException> {
-      kFunc.fullParameters
-    }
-    exception.message shouldBe
-        "Unable to find Java reflection info for KFunctionMock"
   }
 })

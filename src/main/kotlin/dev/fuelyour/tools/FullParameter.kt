@@ -31,4 +31,3 @@ val KFunction<*>.fullParameters
   get() = parameters.map {
     FullParameter(this, it)
   }
-
