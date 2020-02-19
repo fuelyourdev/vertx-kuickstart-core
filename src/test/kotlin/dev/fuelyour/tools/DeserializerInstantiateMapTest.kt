@@ -1,8 +1,10 @@
 package dev.fuelyour.tools
 
+import dev.fuelyour.exceptions.VertxKuickstartException
 import io.kotlintest.data.forall
 import io.kotlintest.shouldBe
 import io.kotlintest.shouldNotBe
+import io.kotlintest.shouldThrow
 import io.kotlintest.specs.StringSpec
 import io.kotlintest.tables.row
 import io.vertx.core.json.JsonArray
@@ -147,5 +149,17 @@ class DeserializerInstantiateMapTest :
         }
       }
     }
+
+    "Cannot instantiate a map where the key is not a String" {
+      val json = jsonObjectOf("1" to "value")
+
+      val exception = shouldThrow<VertxKuickstartException> {
+        type<Map<Int, String>>().instantiate(json)
+      }
+
+      exception.message shouldBe "Map is missing a primary constructor"
+    }
+
+    //Todo test Map<String, Array>
   }
 }

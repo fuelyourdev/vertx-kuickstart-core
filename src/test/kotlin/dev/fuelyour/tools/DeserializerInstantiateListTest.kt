@@ -135,5 +135,7 @@ class DeserializerInstantiateListTest :
         }
       }
     }
+
+    //Todo test arrays
   }
 }

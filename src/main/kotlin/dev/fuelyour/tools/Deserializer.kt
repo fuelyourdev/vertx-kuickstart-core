@@ -58,6 +58,9 @@ class DeserializerImpl: Deserializer {
     return ctor.call(*params.toTypedArray())
   }
 
+  private inline fun <reified T:Any> JsonArray.toPrimitiveArray() =
+    list.map { it as T }.toTypedArray()
+
   private fun FullParameter.instantiate(
     json: JsonObject,
     typeOverride: Type? = null
@@ -68,11 +71,18 @@ class DeserializerImpl: Deserializer {
       val value = when (kclass) {
         ByteArray::class -> json.getBinary(name)
         Boolean::class -> json.getBoolean(name)
+        BooleanArray::class ->
+          json.getJsonArray(name).toPrimitiveArray<Boolean>()
         Double::class -> json.getDouble(name)
+        DoubleArray::class -> json.getJsonArray(name).toPrimitiveArray<Double>()
         Float::class -> json.getFloat(name)
+        FloatArray::class -> json.getJsonArray(name).toPrimitiveArray<Float>()
         Instant::class -> json.getInstant(name)
         Int::class -> json.getInteger(name)
+        IntArray::class -> json.getJsonArray(name).toPrimitiveArray<Int>()
         Long::class -> json.getLong(name)
+        LongArray::class -> json.getJsonArray(name).toPrimitiveArray<Long>()
+        Array<Any>::class -> json.getJsonArray(name).toPrimitiveArray<Any>()
         String::class -> json.getString(name)
         Field::class -> type.instantiateField(json, name)
         List::class -> type.instantiateList(json.getJsonArray(name))

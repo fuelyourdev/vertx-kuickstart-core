@@ -297,7 +297,71 @@ class DeserializerInstantiateTest :
       result shouldBe expected
     }
 
-    //todo test error messages for custom class generics
+    "instantiate for custom class with generics should have clear error" {
+      data class ClassWithGenerics<T>(val value: T)
+
+      val json = jsonObjectOf("value" to 1)
+
+      val exception = shouldThrow<VertxKuickstartException> {
+        type<ClassWithGenerics<Boolean>>().instantiate(json)
+      }
+
+      exception.message shouldBe "ClassWithGenerics.value expects type " +
+          "Boolean but was given the value: 1"
+    }
+
+    "instantiate works for a data class with an array" {
+      data class ClassWithArray(val arr: Array<Int>) {
+        override fun equals(other: Any?): Boolean {
+          if (this === other) return true
+          if (javaClass != other?.javaClass) return false
+
+          other as ClassWithArray
+
+          if (!arr.contentEquals(other.arr)) return false
+
+          return true
+        }
+
+        override fun hashCode(): Int {
+          return arr.contentHashCode()
+        }
+      }
+
+      val json = jsonObjectOf("arr" to jsonArrayOf(1, 2))
+      val expected = ClassWithArray(arrayOf(1, 2))
+
+      val result = type<ClassWithArray>().instantiate(json)
+
+      result shouldBe expected
+    }
+
+    "instantiate works for a data class with a generic array" {
+      data class ClassWithArray<T>(val arr: Array<T>) {
+        override fun equals(other: Any?): Boolean {
+          if (this === other) return true
+          if (javaClass != other?.javaClass) return false
+
+          other as ClassWithArray<*>
+
+          if (!arr.contentEquals(other.arr)) return false
+
+          return true
+        }
+
+        override fun hashCode(): Int {
+          return arr.contentHashCode()
+        }
+
+      }
+
+      val json = jsonObjectOf("arr" to jsonArrayOf(1, 2))
+      val expected = ClassWithArray(arrayOf(1, 2))
+
+      val result = type<ClassWithArray<Int>>().instantiate(json)
+
+      result shouldBe expected
+    }
 
     //todo test vararg
 
