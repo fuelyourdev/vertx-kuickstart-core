@@ -16,7 +16,12 @@ class FullParameter internal constructor(
     get() = param.name ?: handleMissingParamName()
 
   val kclass: KClass<*>
-    get() = param.type.jvmErasure
+    get() {
+      val javaType = param.type.javaType
+      if (javaType is Class<*> && javaType.isArray)
+        return javaType.kotlin
+      return param.type.jvmErasure
+    }
 
   val type: Type
     get() = param.type.javaType
