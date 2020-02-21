@@ -265,7 +265,7 @@ class DeserializerInstantiateTest :
       exception.cause should beInstanceOf<ClassCastException>()
     }
 
-    "!instantiate for custom class with list generics shouldn't loose generics" {
+    "instantiate for custom class with list generics shouldn't loose generics" {
       data class ClassWithGenerics<T>(val value: T, val list: List<T>)
       data class OuterClass(
         val inner1: ClassWithGenerics<String>,
@@ -295,7 +295,7 @@ class DeserializerInstantiateTest :
                 "list" to jsonArrayOf(2)
               )
             ),
-            "list" to jsonArrayOf()
+            "list" to jsonArrayOf(jsonArrayOf())
           )
         ),
         "list" to jsonArrayOf()
