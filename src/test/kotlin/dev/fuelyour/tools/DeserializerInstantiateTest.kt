@@ -265,6 +265,60 @@ class DeserializerInstantiateTest :
       exception.cause should beInstanceOf<ClassCastException>()
     }
 
+    "!instantiate for custom class with list generics shouldn't loose generics" {
+      data class ClassWithGenerics<T>(val value: T, val list: List<T>)
+      data class OuterClass(
+        val inner1: ClassWithGenerics<String>,
+        val inner2: ClassWithGenerics<Int>,
+        val inner3: ClassWithGenerics<List<Boolean>>,
+        val inner4: ClassWithGenerics<List<ClassWithGenerics<Int>>>
+      )
+
+      val json = jsonObjectOf(
+        "value" to jsonObjectOf(
+          "inner1" to jsonObjectOf(
+            "value" to "string",
+            "list" to jsonArrayOf("value1")
+          ),
+          "inner2" to jsonObjectOf(
+            "value" to 1,
+            "list" to jsonArrayOf(2)
+          ),
+          "inner3" to jsonObjectOf(
+            "value" to jsonArrayOf(true, false),
+            "list" to jsonArrayOf(jsonArrayOf(false))
+          ),
+          "inner4" to jsonObjectOf(
+            "value" to jsonArrayOf(
+              jsonObjectOf(
+                "value" to 1,
+                "list" to jsonArrayOf(2)
+              )
+            ),
+            "list" to jsonArrayOf()
+          )
+        ),
+        "list" to jsonArrayOf()
+      )
+
+      val expected = ClassWithGenerics(
+        OuterClass(
+          ClassWithGenerics("string", listOf("value1")),
+          ClassWithGenerics(1, listOf(2)),
+          ClassWithGenerics(listOf(true, false), listOf(listOf(false))),
+          ClassWithGenerics(
+            listOf(ClassWithGenerics(1, listOf(2))),
+            listOf(listOf())
+          )
+        ),
+        listOf()
+      )
+
+      val result = type<ClassWithGenerics<OuterClass>>().instantiate(json)
+
+      result shouldBe expected
+    }
+
     "instantiate for custom class with generics shouldn't loose generics" {
       data class ClassWithGenerics<T>(val value: T)
       data class OuterClass(
@@ -398,8 +452,7 @@ class DeserializerInstantiateTest :
       result shouldBe expected
     }
 
-    //todo figure out generic arrays
-    "!instantiate works for a data class with a generic array" {
+    "instantiate works for a data class with a generic array" {
       data class ClassWithArray<T>(val arr: Array<T>) {
         override fun equals(other: Any?): Boolean {
           if (this === other) return true
@@ -431,5 +484,7 @@ class DeserializerInstantiateTest :
     //todo test array parameters
 
     //todo test error when expected array type and actual type are different
+
+    //todo test double arrays
   }
 }

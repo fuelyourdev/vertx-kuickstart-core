@@ -40,19 +40,26 @@ class DeserializerImpl: Deserializer {
   override fun <T: Any> FullType<T>.instantiate(json: JsonObject?): T? =
     type.instantiate(json) as T?
 
-  override fun Type.instantiate(json: JsonObject?): Any? {
+  override fun Type.instantiate(json: JsonObject?): Any? =
+    instantiate(json, mapOf())
+
+  fun Type.instantiate(
+    json: JsonObject?,
+    genericsMap: Map<String, Type>
+  ): Any? {
     if (json == null) return null
-    val genericsMap = kClass.java.typeParameters.mapIndexed { index, type ->
+    val kClass = resolveKClass(genericsMap)
+    val classGenerics = kClass.java.typeParameters.mapIndexed { index, type ->
       type.name to let { it as ParameterizedType }.actualTypeArguments[index]
     }.toMap()
     val ctor = kClass.primaryConstructor
       ?: kClass.handleMissingPrimaryConstructor()
     val params = ctor.fullParameters.map { param ->
       val typeName = param.param.type.javaType.typeName
-      if (typeName in genericsMap.keys) {
-        param.instantiate(json, genericsMap[typeName])
+      if (typeName in classGenerics.keys) {
+        param.instantiate(json, classGenerics, classGenerics[typeName])
       } else {
-        param.instantiate(json)
+        param.instantiate(json, classGenerics)
       }
     }
     return ctor.call(*params.toTypedArray())
@@ -60,10 +67,11 @@ class DeserializerImpl: Deserializer {
 
   private fun FullParameter.instantiate(
     json: JsonObject,
+    genericsMap: Map<String, Type>,
     typeOverride: Type? = null
   ): Any? {
-    val type = typeOverride ?: type
-    val kclass = typeOverride?.kClass ?: kclass
+    val resolvedType = typeOverride ?: type
+    val kclass = type.resolveKClass(genericsMap)
     return try {
       val value = when (kclass) {
         ByteArray::class -> json.getBinary(name)
@@ -74,18 +82,20 @@ class DeserializerImpl: Deserializer {
         Int::class -> json.getInteger(name)
         Long::class -> json.getLong(name)
         String::class -> json.getString(name)
-        Field::class -> type.instantiateField(json, name)
-        List::class -> type.instantiateList(json.getJsonArray(name))
-        Map::class -> type.instantiateMap(json.getJsonObject(name))
+        Field::class -> resolvedType.instantiateField(json, genericsMap, name)
+        List::class ->
+          resolvedType.instantiateList(json.getJsonArray(name), genericsMap)
+        Map::class ->
+          resolvedType.instantiateMap(json.getJsonObject(name), genericsMap)
         JsonObject::class -> json.getJsonObject(name)
         JsonArray::class -> json.getJsonArray(name)
         else ->
           if (kclass.isEnum)
             kclass.instantiateEnum(json.getString(name))
           else if (kclass.java.isArray)
-            type.instantiateArray(json.getJsonArray(name))
+            resolvedType.instantiateArray(json.getJsonArray(name), genericsMap)
           else
-            type.instantiate(json.getJsonObject(name))
+            resolvedType.instantiate(json.getJsonObject(name), genericsMap)
       }
       value.verifyOnlyNullIfParamAllows(this)
       value
@@ -137,12 +147,18 @@ class DeserializerImpl: Deserializer {
   ): List<T?>? =
     this.type.instantiateList(arr) as List<T?>?
 
-  override fun Type.instantiateList(arr: JsonArray?): List<Any?>? {
+  override fun Type.instantiateList(arr: JsonArray?): List<Any?>? =
+    instantiateList(arr, mapOf())
+
+  private fun Type.instantiateList(
+    arr: JsonArray?,
+    genericsMap: Map<String, Type>
+  ): List<Any?>? {
     if (arr == null) return null
     val range = 0 until arr.size()
     return this.let { type ->
       val genericType = type.getGenericType(0)
-      when (val itemsKClass = genericType.kClass) {
+      when (val itemsKClass = genericType.resolveKClass(genericsMap)) {
         ByteArray::class -> range.map { arr.getBinary(it) }
         Boolean::class -> range.map { arr.getBoolean(it) }
         Double::class -> range.map { arr.getDouble(it) }
@@ -155,10 +171,10 @@ class DeserializerImpl: Deserializer {
           "List of Field type not allowed"
         )
         List::class -> range.map {
-          genericType.instantiateList(arr.getJsonArray(it))
+          genericType.instantiateList(arr.getJsonArray(it), genericsMap)
         }
         Map::class -> range.map {
-          genericType.instantiateMap(arr.getJsonObject(it))
+          genericType.instantiateMap(arr.getJsonObject(it), genericsMap)
         }
         JsonObject::class -> range.map { arr.getJsonObject(it) }
         JsonArray::class -> range.map { arr.getJsonArray(it) }
@@ -166,25 +182,34 @@ class DeserializerImpl: Deserializer {
           if (itemsKClass.isEnum) {
             range.map { itemsKClass.instantiateEnum(arr.getString(it)) }
           } else if (itemsKClass.java.isArray) {
-            range.map { genericType.instantiateArray(arr.getJsonArray(it)) }
+            range.map {
+              genericType.instantiateArray(arr.getJsonArray(it), genericsMap)
+            }
           } else {
-            range.map { genericType.instantiate(arr.getJsonObject(it)) }
+            range.map {
+              genericType.instantiate(arr.getJsonObject(it), genericsMap)
+            }
           }
       }
     }
   }
 
-  private fun Type.instantiateArray(arr: JsonArray?): Any? {
+  private fun Type.instantiateArray(
+    arr: JsonArray?,
+    genericsMap: Map<String, Type>
+  ): Any? {
     if (arr == null) return null
     val range = 0 until arr.size()
+    val kClass = resolveKClass(genericsMap)
     val arrType = kClass.java.componentType as Type
+    val arrTypeKClass = arrType.resolveKClass(genericsMap)
     return when (kClass) {
       BooleanArray::class -> arr.list.map { it as Boolean }.toBooleanArray()
       DoubleArray::class -> arr.list.map { it as Double }.toDoubleArray()
       FloatArray::class -> arr.list.map { it as Float }.toFloatArray()
       IntArray::class -> arr.list.map { it as Int }.toIntArray()
       LongArray::class -> arr.list.map { it as Long }.toLongArray()
-      else -> when (val itemsKClass = arrType.kClass) {
+      else -> when (val itemsKClass = arrTypeKClass) {
         ByteArray::class -> range.map { arr.getBinary(it) }.toTypedArray()
         Boolean::class -> range.map { arr.getBoolean(it) }.toTypedArray()
         Double::class -> range.map { arr.getDouble(it) }.toTypedArray()
@@ -197,10 +222,10 @@ class DeserializerImpl: Deserializer {
           "Array of Field type not allowed"
         )
         List::class -> range.map {
-          arrType.instantiateList(arr.getJsonArray(it))
+          arrType.instantiateList(arr.getJsonArray(it), genericsMap)
         }.toTypedArray()
         Map::class -> range.map {
-          arrType.instantiateMap(arr.getJsonObject(it))
+          arrType.instantiateMap(arr.getJsonObject(it), genericsMap)
         }.toTypedArray()
         JsonObject::class -> range.map { arr.getJsonObject(it) }.toTypedArray()
         JsonArray::class -> range.map { arr.getJsonArray(it) }.toTypedArray()
@@ -209,11 +234,13 @@ class DeserializerImpl: Deserializer {
             range.map { itemsKClass.instantiateEnum(arr.getString(it)) }
               .toTypedArray()
           } else if (itemsKClass.java.isArray) {
-            range.map { arrType.instantiateArray(arr.getJsonArray(it)) }
-              .toTypedArray()
+            range.map {
+              arrType.instantiateArray(arr.getJsonArray(it), genericsMap)
+            }.toTypedArray()
           } else {
-            range.map { arrType.instantiate(arr.getJsonObject(it)) }
-              .toTypedArray()
+            range.map {
+              arrType.instantiate(arr.getJsonObject(it), genericsMap)
+            }.toTypedArray()
           }
       }
     }
@@ -225,11 +252,17 @@ class DeserializerImpl: Deserializer {
   ): Map<String, T?>? =
     type.instantiateMap(obj) as Map<String, T?>?
 
-  override fun Type.instantiateMap(obj: JsonObject?): Map<String, Any?>? {
+  override fun Type.instantiateMap(obj: JsonObject?): Map<String, Any?>? =
+    instantiateMap(obj, mapOf())
+
+  private fun Type.instantiateMap(
+    obj: JsonObject?,
+    genericsMap: Map<String, Type>
+  ): Map<String, Any?>? {
     if (obj == null) return null
     return this.let { type ->
       val genericType = type.getGenericType(1)
-      val itemsKClass = genericType.kClass
+      val itemsKClass = genericType.resolveKClass(genericsMap)
       val map = mutableMapOf<String, Any?>()
       obj.forEach { (key, _) ->
         when (itemsKClass) {
@@ -242,20 +275,22 @@ class DeserializerImpl: Deserializer {
           Long::class -> map[key] = obj.getLong(key)
           String::class -> map[key] = obj.getString(key)
           Field::class -> map[key] =
-            genericType.instantiateField(obj, key)
+            genericType.instantiateField(obj, genericsMap, key)
           List::class -> map[key] =
-            genericType.instantiateList(obj.getJsonArray(key))
+            genericType.instantiateList(obj.getJsonArray(key), genericsMap)
           Map::class -> map[key] =
-            genericType.instantiateMap(obj.getJsonObject(key))
+            genericType.instantiateMap(obj.getJsonObject(key), genericsMap)
           JsonObject::class -> map[key] = obj.getJsonObject(key)
           JsonArray::class -> map[key] = obj.getJsonArray(key)
           else ->
             if (itemsKClass.isEnum) {
               map[key] = itemsKClass.instantiateEnum(obj.getString(key))
             } else if (itemsKClass.java.isArray) {
-              map[key] = genericType.instantiateArray(obj.getJsonArray(key))
+              map[key] = genericType
+                .instantiateArray(obj.getJsonArray(key), genericsMap)
             } else {
-              map[key] = genericType.instantiate(obj.getJsonObject(key))
+              map[key] = genericType
+                .instantiate(obj.getJsonObject(key), genericsMap)
             }
         }
       }
@@ -265,11 +300,12 @@ class DeserializerImpl: Deserializer {
 
   private fun Type.instantiateField(
     json: JsonObject,
+    genericsMap: Map<String, Type>,
     key: String
   ): Field<out Any?> {
     return this.let { type ->
       val genericType = type.getGenericType(0)
-      when (val itemsKClass = genericType.kClass) {
+      when (val itemsKClass = genericType.resolveKClass(genericsMap)) {
         ByteArray::class -> Field(json.getBinary(key), json.containsKey(key))
         Boolean::class -> Field(json.getBoolean(key), json.containsKey(key))
         Double::class -> Field(json.getDouble(key), json.containsKey(key))
@@ -282,11 +318,11 @@ class DeserializerImpl: Deserializer {
           "Field of Field type not allowed"
         )
         List::class -> Field(
-          genericType.instantiateList(json.getJsonArray(key)),
+          genericType.instantiateList(json.getJsonArray(key), genericsMap),
           json.containsKey(key)
         )
         Map::class -> Field(
-          genericType.instantiateMap(json.getJsonObject(key)),
+          genericType.instantiateMap(json.getJsonObject(key), genericsMap),
           json.containsKey(key)
         )
         JsonObject::class -> Field(
@@ -302,12 +338,12 @@ class DeserializerImpl: Deserializer {
             )
           } else if (itemsKClass.java.isArray) {
             Field(
-              genericType.instantiateArray(json.getJsonArray(key)),
+              genericType.instantiateArray(json.getJsonArray(key), genericsMap),
               json.containsKey(key)
             )
           } else {
             Field(
-              genericType.instantiate(json.getJsonObject(key)),
+              genericType.instantiate(json.getJsonObject(key), genericsMap),
               json.containsKey(key)
             )
           }
@@ -324,23 +360,45 @@ class DeserializerImpl: Deserializer {
       }
     }
 
-  private val Type.kClass: KClass<*>
-    get() = when (this) {
-      is ParameterizedType -> rawType.typeName
-      else -> typeName
-    }.let { when (it) {
+  private fun Type.resolveKClass(
+    genericsMap: Map<String, Type> = mapOf()
+  ): KClass<*> =
+    baseTypeName.let { when (it) {
       "byte[]" -> ByteArray::class
       "boolean[]" -> BooleanArray::class
       "double[]" -> DoubleArray::class
       "float[]" -> FloatArray::class
       "int[]" -> IntArray::class
       "long[]" -> LongArray::class
+      "boolean" -> Boolean::class
+      "double" -> Double::class
+      "float" -> Float::class
+      "int" -> Int::class
+      "long" -> Long::class
       else ->
-        if (it.endsWith("[]"))
-          Class.forName("[L${it.substring(0, it.length-2)};").kotlin
-        else
-          Class.forName(it).kotlin
+        if (it.endsWith("[]")) {
+          val name = it.substring(0, it.length - 2)
+          if (name in genericsMap.keys) {
+            val resolvedName = genericsMap[name]?.baseTypeName
+            Class.forName("[L$resolvedName;").kotlin
+          } else {
+            Class.forName("[L$name;").kotlin
+          }
+        } else {
+          if (it in genericsMap.keys) {
+            val name = genericsMap[it]?.baseTypeName
+            Class.forName(name).kotlin
+          } else {
+            Class.forName(it).kotlin
+          }
+        }
     } }
+
+  private val Type.baseTypeName: String
+    get() = when(this) {
+      is ParameterizedType -> rawType.typeName
+      else -> typeName
+    }
 }
 
 inline fun <reified T> type(): FullType<T> =
