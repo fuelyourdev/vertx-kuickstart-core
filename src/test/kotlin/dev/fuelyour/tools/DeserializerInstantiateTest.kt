@@ -366,8 +366,8 @@ class DeserializerInstantiateTest :
 
     "instantiate works with 2d arrays" {
       data class TwoDArrays(
-        val intDoubleArray: Array<IntArray>,
-        val intObjDoubleArray: Array<Array<Int>>
+        val int2DArray: Array<IntArray>,
+        val intObj2DArray: Array<Array<Int>>
       ) {
         override fun equals(other: Any?): Boolean {
           if (this === other) return true
@@ -375,28 +375,28 @@ class DeserializerInstantiateTest :
 
           other as TwoDArrays
 
-          if (!intDoubleArray.contentDeepEquals(other.intDoubleArray))
+          if (!int2DArray.contentDeepEquals(other.int2DArray))
             return false
-          if (!intObjDoubleArray.contentDeepEquals(other.intObjDoubleArray))
+          if (!intObj2DArray.contentDeepEquals(other.intObj2DArray))
             return false
 
           return true
         }
 
         override fun hashCode(): Int {
-          var result = intDoubleArray.contentDeepHashCode()
-          result = 31 * result + intObjDoubleArray.contentDeepHashCode()
+          var result = int2DArray.contentDeepHashCode()
+          result = 31 * result + intObj2DArray.contentDeepHashCode()
           return result
         }
       }
 
       val json = jsonObjectOf(
-        "intDoubleArray" to jsonArrayOf(jsonArrayOf(1, 2), jsonArrayOf(3, 4)),
-        "intObjDoubleArray" to jsonArrayOf(jsonArrayOf(5, 6), jsonArrayOf(7, 8))
+        "int2DArray" to jsonArrayOf(jsonArrayOf(1, 2), jsonArrayOf(3, 4)),
+        "intObj2DArray" to jsonArrayOf(jsonArrayOf(5, 6), jsonArrayOf(7, 8))
       )
       val expected = TwoDArrays(
-        intDoubleArray = arrayOf(intArrayOf(1, 2), intArrayOf(3, 4)),
-        intObjDoubleArray = arrayOf(arrayOf(5, 6), arrayOf(7, 8))
+        int2DArray = arrayOf(intArrayOf(1, 2), intArrayOf(3, 4)),
+        intObj2DArray = arrayOf(arrayOf(5, 6), arrayOf(7, 8))
       )
 
       val result = type<TwoDArrays>().instantiate(json)
