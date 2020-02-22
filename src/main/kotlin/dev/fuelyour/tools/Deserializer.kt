@@ -239,9 +239,19 @@ class DeserializerImpl: Deserializer {
             range.map { itemsKClass.instantiateEnum(arr.getString(it)) }
               .toTypedArray()
           } else if (itemsKClass.java.isArray) {
-            range.map {
-              resolvedArrType.instantiateArray(arr.getJsonArray(it), genericsMap)
-            }.toTypedArray()
+            val outerArray =
+              java.lang.reflect.Array.newInstance(itemsKClass.java, arr.size())
+            for (i in range) {
+              java.lang.reflect.Array.set(
+                outerArray,
+                i,
+                resolvedArrType.instantiateArray(
+                  arr.getJsonArray(i),
+                  genericsMap
+                )
+              )
+            }
+            outerArray
           } else {
             range.map {
               resolvedArrType.instantiate(arr.getJsonObject(it), genericsMap)
@@ -371,12 +381,6 @@ class DeserializerImpl: Deserializer {
     genericsMap: Map<String, Type> = mapOf()
   ): KClass<*> =
     baseTypeName.let { when (it) {
-      "byte[]" -> ByteArray::class
-      "boolean[]" -> BooleanArray::class
-      "double[]" -> DoubleArray::class
-      "float[]" -> FloatArray::class
-      "int[]" -> IntArray::class
-      "long[]" -> LongArray::class
       "boolean" -> Boolean::class
       "double" -> Double::class
       "float" -> Float::class
@@ -384,13 +388,24 @@ class DeserializerImpl: Deserializer {
       "long" -> Long::class
       else ->
         if (it.endsWith("[]")) {
-          val name = it.substring(0, it.length - 2)
-          if (name in genericsMap.keys) {
-            val resolvedName = genericsMap[name]?.baseTypeName
-            Class.forName("[L$resolvedName;").kotlin
-          } else {
-            Class.forName("[L$name;").kotlin
+          val endIndex = it.indexOf('[')
+          val name = it.substring(0, endIndex)
+          val nestingLevel = (it.length - endIndex) / 2
+          val arrStr = (1..nestingLevel).map { "[" }.joinToString(separator = "")
+          val resolvedName = when(name) {
+            "boolean" -> "Z"
+            "byte" -> "B"
+            "double" -> "D"
+            "float" -> "F"
+            "int" -> "I"
+            "long" -> "J"
+            else ->
+              if (name in genericsMap.keys)
+                "L${genericsMap[name]?.baseTypeName};"
+              else
+                "L$name;"
           }
+          Class.forName("${arrStr}$resolvedName").kotlin
         } else {
           if (it in genericsMap.keys) {
             val name = genericsMap[it]?.baseTypeName

@@ -364,6 +364,46 @@ class DeserializerInstantiateTest :
           "Boolean but was given the value: 1"
     }
 
+    "instantiate works with 2d arrays" {
+      data class TwoDArrays(
+        val intDoubleArray: Array<IntArray>,
+        val intObjDoubleArray: Array<Array<Int>>
+      ) {
+        override fun equals(other: Any?): Boolean {
+          if (this === other) return true
+          if (javaClass != other?.javaClass) return false
+
+          other as TwoDArrays
+
+          if (!intDoubleArray.contentDeepEquals(other.intDoubleArray))
+            return false
+          if (!intObjDoubleArray.contentDeepEquals(other.intObjDoubleArray))
+            return false
+
+          return true
+        }
+
+        override fun hashCode(): Int {
+          var result = intDoubleArray.contentDeepHashCode()
+          result = 31 * result + intObjDoubleArray.contentDeepHashCode()
+          return result
+        }
+      }
+
+      val json = jsonObjectOf(
+        "intDoubleArray" to jsonArrayOf(jsonArrayOf(1, 2), jsonArrayOf(3, 4)),
+        "intObjDoubleArray" to jsonArrayOf(jsonArrayOf(5, 6), jsonArrayOf(7, 8))
+      )
+      val expected = TwoDArrays(
+        intDoubleArray = arrayOf(intArrayOf(1, 2), intArrayOf(3, 4)),
+        intObjDoubleArray = arrayOf(arrayOf(5, 6), arrayOf(7, 8))
+      )
+
+      val result = type<TwoDArrays>().instantiate(json)
+
+      result shouldBe expected
+    }
+
     "instantiate works for a data class with an array" {
       data class ClassWithArray(
         val booleanArr: BooleanArray,
