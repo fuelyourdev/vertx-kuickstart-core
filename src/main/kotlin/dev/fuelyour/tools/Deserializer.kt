@@ -4,6 +4,7 @@ import dev.fuelyour.exceptions.VertxKuickstartException
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import java.lang.ClassCastException
+import java.lang.reflect.GenericArrayType
 import java.lang.reflect.ParameterizedType
 import java.lang.reflect.Type
 import java.lang.reflect.WildcardType
@@ -74,7 +75,7 @@ class DeserializerImpl: Deserializer {
     genericsMap: Map<String, Type>
   ): Any? {
     val resolvedType = type.resolve(genericsMap)
-    val kclass = type.resolveKClass(genericsMap)
+    val kclass = resolvedType.resolveKClass(genericsMap)
     return try {
       val value = when (kclass) {
         ByteArray::class -> json.getBinary(name)
@@ -162,7 +163,7 @@ class DeserializerImpl: Deserializer {
     return this.let { type ->
       val genericType = type.getGenericType(0)
       val resolvedType = genericType.resolve(genericsMap)
-      when (val itemsKClass = genericType.resolveKClass(genericsMap)) {
+      when (val itemsKClass = resolvedType.resolveKClass(genericsMap)) {
         ByteArray::class -> range.map { arr.getBinary(it) }
         Boolean::class -> range.map { arr.getBoolean(it) }
         Double::class -> range.map { arr.getDouble(it) }
@@ -205,9 +206,12 @@ class DeserializerImpl: Deserializer {
     if (arr == null) return null
     val range = 0 until arr.size()
     val kClass = resolveKClass(genericsMap)
-    val arrType = kClass.java.componentType as Type
+    val arrType = if (this is GenericArrayType)
+      this.genericComponentType
+    else
+      kClass.java.componentType as Type
     val resolvedArrType = arrType.resolve(genericsMap)
-    val arrTypeKClass = arrType.resolveKClass(genericsMap)
+    val arrTypeKClass = resolvedArrType.resolveKClass(genericsMap)
     return when (kClass) {
       BooleanArray::class -> arr.list.map { it as Boolean }.toBooleanArray()
       DoubleArray::class -> arr.list.map { it as Double }.toDoubleArray()
@@ -226,12 +230,12 @@ class DeserializerImpl: Deserializer {
         Field::class -> throw VertxKuickstartException(
           "Array of Field type not allowed"
         )
-        List::class -> range.map {
-          resolvedArrType.instantiateList(arr.getJsonArray(it), genericsMap)
-        }.toTypedArray()
-        Map::class -> range.map {
+        List::class -> loadArray(itemsKClass, arr) { i ->
+          resolvedArrType.instantiateList(arr.getJsonArray(i), genericsMap)
+        }
+        Map::class -> loadArray(itemsKClass, arr) {
           resolvedArrType.instantiateMap(arr.getJsonObject(it), genericsMap)
-        }.toTypedArray()
+        }
         JsonObject::class -> range.map { arr.getJsonObject(it) }.toTypedArray()
         JsonArray::class -> range.map { arr.getJsonArray(it) }.toTypedArray()
         else ->
@@ -239,26 +243,30 @@ class DeserializerImpl: Deserializer {
             range.map { itemsKClass.instantiateEnum(arr.getString(it)) }
               .toTypedArray()
           } else if (itemsKClass.java.isArray) {
-            val outerArray =
-              java.lang.reflect.Array.newInstance(itemsKClass.java, arr.size())
-            for (i in range) {
-              java.lang.reflect.Array.set(
-                outerArray,
-                i,
-                resolvedArrType.instantiateArray(
-                  arr.getJsonArray(i),
-                  genericsMap
-                )
-              )
+            loadArray(itemsKClass, arr) { i ->
+              resolvedArrType.instantiateArray(arr.getJsonArray(i), genericsMap)
             }
-            outerArray
           } else {
-            range.map {
+            loadArray(itemsKClass, arr) {
               resolvedArrType.instantiate(arr.getJsonObject(it), genericsMap)
-            }.toTypedArray()
+            }
           }
       }
     }
+  }
+
+  @Suppress("UNCHECKED_CAST")
+  private fun <T:Any> loadArray(
+    kclass: KClass<T>,
+    arr: JsonArray,
+    func: (Int) -> Any?
+  ): Array<T> {
+    val outerArray =
+      java.lang.reflect.Array.newInstance(kclass.java, arr.size())
+    for (i in 0 until arr.size()) {
+      java.lang.reflect.Array.set(outerArray, i, func(i))
+    }
+    return outerArray as Array<T>
   }
 
   @Suppress("UNCHECKED_CAST")
@@ -278,7 +286,7 @@ class DeserializerImpl: Deserializer {
     return this.let { type ->
       val genericType = type.getGenericType(1)
       val resolvedType = genericType.resolve(genericsMap)
-      val itemsKClass = genericType.resolveKClass(genericsMap)
+      val itemsKClass = resolvedType.resolveKClass(genericsMap)
       val map = mutableMapOf<String, Any?>()
       obj.forEach { (key, _) ->
         when (itemsKClass) {
@@ -322,7 +330,7 @@ class DeserializerImpl: Deserializer {
     return this.let { type ->
       val genericType = type.getGenericType(0)
       val resolvedType = genericType.resolve(genericsMap)
-      when (val itemsKClass = genericType.resolveKClass(genericsMap)) {
+      when (val itemsKClass = resolvedType.resolveKClass(genericsMap)) {
         ByteArray::class -> Field(json.getBinary(key), json.containsKey(key))
         Boolean::class -> Field(json.getBoolean(key), json.containsKey(key))
         Double::class -> Field(json.getDouble(key), json.containsKey(key))
@@ -380,41 +388,71 @@ class DeserializerImpl: Deserializer {
   private fun Type.resolveKClass(
     genericsMap: Map<String, Type> = mapOf()
   ): KClass<*> =
-    baseTypeName.let { when (it) {
-      "boolean" -> Boolean::class
-      "double" -> Double::class
-      "float" -> Float::class
-      "int" -> Int::class
-      "long" -> Long::class
-      else ->
-        if (it.endsWith("[]")) {
-          val endIndex = it.indexOf('[')
-          val name = it.substring(0, endIndex)
-          val nestingLevel = (it.length - endIndex) / 2
-          val arrStr = (1..nestingLevel).map { "[" }.joinToString(separator = "")
-          val resolvedName = when(name) {
-            "boolean" -> "Z"
-            "byte" -> "B"
-            "double" -> "D"
-            "float" -> "F"
-            "int" -> "I"
-            "long" -> "J"
-            else ->
-              if (name in genericsMap.keys)
-                "L${genericsMap[name]?.baseTypeName};"
-              else
-                "L$name;"
-          }
-          Class.forName("${arrStr}$resolvedName").kotlin
-        } else {
-          if (it in genericsMap.keys) {
-            val name = genericsMap[it]?.baseTypeName
-            Class.forName(name).kotlin
-          } else {
-            Class.forName(it).kotlin
-          }
+    baseTypeName.let {
+      when (it) {
+        "boolean" -> Boolean::class
+        "double" -> Double::class
+        "float" -> Float::class
+        "int" -> Int::class
+        "long" -> Long::class
+        else -> {
+          val name = determineClassName(it, genericsMap)
+          Class.forName(name).kotlin
         }
-    } }
+      }
+    }
+
+  private fun determineClassName(
+    typeName: String,
+    genericsMap: Map<String, Type>
+  ): String {
+    return if (typeName.endsWith("[]")) {
+      val endIndex = typeName.indexOf('[')
+      val name = typeName.substring(0, endIndex)
+      var nestingLevel = (typeName.length - endIndex) / 2
+      val resolvedName = when (name) {
+        "boolean" -> "Z"
+        "byte" -> "B"
+        "double" -> "D"
+        "float" -> "F"
+        "int" -> "I"
+        "long" -> "J"
+        else -> {
+          val generic = genericsMap[name]
+          if (generic != null) {
+            val tempName = determineClassName(generic.baseTypeName, genericsMap)
+            if (tempName.startsWith('[')) {
+              if (tempName.endsWith(';')) {
+                val indexOfL = tempName.indexOf('L')
+                nestingLevel += indexOfL
+                "L${tempName.substring(indexOfL + 1, tempName.length - 1)};"
+              } else {
+                val startIndex = tempName.lastIndexOf('[') + 1
+                nestingLevel += startIndex
+                tempName.substring(startIndex)
+              }
+            } else {
+              "L$tempName;"
+            }
+          } else if (name.contains('<'))
+            "L${name.substring(0, name.indexOf('<'))};"
+          else
+            "L$name;"
+        }
+      }
+      val arrStr =
+        (1..nestingLevel).map { "[" }.joinToString(separator = "")
+      "$arrStr$resolvedName"
+    } else {
+      val generic = genericsMap[typeName]
+      if (generic != null) {
+        val name = generic.baseTypeName
+        name
+      } else {
+        typeName
+      }
+    }
+  }
 
   private val Type.baseTypeName: String
     get() = when(this) {

@@ -364,6 +364,35 @@ class DeserializerInstantiateTest :
           "Boolean but was given the value: 1"
     }
 
+    "An array of Field type throws an exception" {
+      data class FieldArray(
+        val fieldArray: Array<Field<String>>
+      ) {
+        override fun equals(other: Any?): Boolean {
+          if (this === other) return true
+          if (javaClass != other?.javaClass) return false
+
+          other as FieldArray
+
+          if (!fieldArray.contentEquals(other.fieldArray)) return false
+
+          return true
+        }
+
+        override fun hashCode(): Int {
+          return fieldArray.contentHashCode()
+        }
+      }
+
+      val json = jsonObjectOf("fieldArray" to jsonArrayOf("value"))
+
+      val exception = shouldThrow<VertxKuickstartException> {
+        type<FieldArray>().instantiate(json)
+      }
+
+      exception.message shouldBe "Array of Field type not allowed"
+    }
+
     "instantiate works with 2d arrays" {
       data class TwoDArrays(
         val int2DArray: Array<IntArray>,
@@ -417,7 +446,9 @@ class DeserializerInstantiateTest :
         val longArr: LongArray,
         val longObjArr: Array<Long>,
         val stringArr: Array<String>,
-        val instantArr: Array<Instant>
+        val instantArr: Array<Instant>,
+        val listArr: Array<List<String>>,
+        val mapArr: Array<Map<String, String>>
       ) {
         override fun equals(other: Any?): Boolean {
           if (this === other) return true
@@ -437,6 +468,8 @@ class DeserializerInstantiateTest :
           if (!longObjArr.contentEquals(other.longObjArr)) return false
           if (!stringArr.contentEquals(other.stringArr)) return false
           if (!instantArr.contentEquals(other.instantArr)) return false
+          if (!listArr.contentEquals(other.listArr)) return false
+          if (!mapArr.contentEquals(other.mapArr)) return false
 
           return true
         }
@@ -454,6 +487,8 @@ class DeserializerInstantiateTest :
           result = 31 * result + longObjArr.contentHashCode()
           result = 31 * result + stringArr.contentHashCode()
           result = 31 * result + instantArr.contentHashCode()
+          result = 31 * result + listArr.contentHashCode()
+          result = 31 * result + mapArr.contentHashCode()
           return result
         }
       }
@@ -470,7 +505,9 @@ class DeserializerInstantiateTest :
         "longArr" to jsonArrayOf(1L, 2L),
         "longObjArr" to jsonArrayOf(3L, 4L),
         "stringArr" to jsonArrayOf("value1", "value2"),
-        "instantArr" to JsonArray().add(Instant.EPOCH)
+        "instantArr" to JsonArray().add(Instant.EPOCH),
+        "listArr" to jsonArrayOf(jsonArrayOf("value1")),
+        "mapArr" to jsonArrayOf(jsonObjectOf("key" to "value"))
       )
       val expected = ClassWithArray(
         booleanArr = booleanArrayOf(true, false),
@@ -484,7 +521,9 @@ class DeserializerInstantiateTest :
         longArr = longArrayOf(1L, 2L),
         longObjArr = arrayOf(3L, 4L),
         stringArr = arrayOf("value1", "value2"),
-        instantArr = arrayOf(Instant.EPOCH)
+        instantArr = arrayOf(Instant.EPOCH),
+        listArr = arrayOf(listOf("value1")),
+        mapArr = arrayOf(mapOf("key" to "value"))
       )
 
       val result = type<ClassWithArray>().instantiate(json)
@@ -500,7 +539,7 @@ class DeserializerInstantiateTest :
 
           other as ClassWithArray<*>
 
-          if (!arr.contentEquals(other.arr)) return false
+          if (!arr.contentDeepEquals(other.arr)) return false
 
           return true
         }
@@ -517,6 +556,29 @@ class DeserializerInstantiateTest :
       val result = type<ClassWithArray<Int>>().instantiate(json)
 
       result shouldBe expected
+
+      val json2 = jsonObjectOf("arr" to jsonArrayOf(jsonArrayOf(1)))
+      val expected2 = ClassWithArray(arrayOf(arrayOf(1)))
+      val result2 = type<ClassWithArray<Array<Int>>>().instantiate(json2)
+      result2 shouldBe expected2
+
+      val json3 = jsonObjectOf("arr" to jsonArrayOf(jsonArrayOf(2)))
+      val expected3 = ClassWithArray(arrayOf(intArrayOf(2)))
+      val result3 = type<ClassWithArray<IntArray>>().instantiate(json3)
+      result3 shouldBe expected3
+
+      val json4 = jsonObjectOf("arr" to jsonArrayOf(jsonArrayOf(3)))
+      val expected4 = ClassWithArray(arrayOf(listOf(3)))
+      val result4 = type<ClassWithArray<List<Int>>>().instantiate(json4)
+      result4 shouldBe expected4
+
+      val json5 = jsonObjectOf(
+        "arr" to jsonArrayOf(jsonObjectOf("key" to "value"))
+      )
+      val expected5 = ClassWithArray(arrayOf(mapOf("key" to "value")))
+      val result5 = type<ClassWithArray<Map<String, String>>>()
+        .instantiate(json5)
+      result5 shouldBe expected5
     }
 
     //todo test vararg
