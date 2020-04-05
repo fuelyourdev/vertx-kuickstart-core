@@ -63,11 +63,7 @@ class DeserializerImpl: Deserializer {
 
   private fun Type.resolve(genericsMap: Map<String, Type>): Type {
     val generic = genericsMap[typeName]
-    if (generic != null) {
-      return generic
-    } else {
-      return this
-    }
+    return generic ?: this
   }
 
   private fun FullParameter.instantiate(
@@ -94,12 +90,17 @@ class DeserializerImpl: Deserializer {
         JsonObject::class -> json.getJsonObject(name)
         JsonArray::class -> json.getJsonArray(name)
         else ->
-          if (kclass.isEnum)
-            kclass.instantiateEnum(json.getString(name))
-          else if (kclass.java.isArray)
-            resolvedType.instantiateArray(json.getJsonArray(name), genericsMap)
-          else
-            resolvedType.instantiate(json.getJsonObject(name), genericsMap)
+          when {
+            kclass.isEnum -> kclass.instantiateEnum(json.getString(name))
+            kclass.java.isArray -> resolvedType.instantiateArray(
+              json.getJsonArray(name),
+              genericsMap
+            )
+            else -> resolvedType.instantiate(
+              json.getJsonObject(name),
+              genericsMap
+            )
+          }
       }
       value.verifyOnlyNullIfParamAllows(this)
       value
@@ -184,15 +185,19 @@ class DeserializerImpl: Deserializer {
         JsonObject::class -> range.map { arr.getJsonObject(it) }
         JsonArray::class -> range.map { arr.getJsonArray(it) }
         else ->
-          if (itemsKClass.isEnum) {
-            range.map { itemsKClass.instantiateEnum(arr.getString(it)) }
-          } else if (itemsKClass.java.isArray) {
-            range.map {
-              resolvedType.instantiateArray(arr.getJsonArray(it), genericsMap)
+          when {
+            itemsKClass.isEnum -> {
+              range.map { itemsKClass.instantiateEnum(arr.getString(it)) }
             }
-          } else {
-            range.map {
-              resolvedType.instantiate(arr.getJsonObject(it), genericsMap)
+            itemsKClass.java.isArray -> {
+              range.map {
+                resolvedType.instantiateArray(arr.getJsonArray(it), genericsMap)
+              }
+            }
+            else -> {
+              range.map {
+                resolvedType.instantiate(arr.getJsonObject(it), genericsMap)
+              }
             }
           }
       }
@@ -218,7 +223,7 @@ class DeserializerImpl: Deserializer {
       FloatArray::class -> arr.list.map { it as Float }.toFloatArray()
       IntArray::class -> arr.list.map { it as Int }.toIntArray()
       LongArray::class -> arr.list.map { it as Long }.toLongArray()
-      else -> when (val itemsKClass = arrTypeKClass) {
+      else -> when (arrTypeKClass) {
         ByteArray::class -> range.map { arr.getBinary(it) }.toTypedArray()
         Boolean::class -> range.map { arr.getBoolean(it) }.toTypedArray()
         Double::class -> range.map { arr.getDouble(it) }.toTypedArray()
@@ -230,25 +235,32 @@ class DeserializerImpl: Deserializer {
         Field::class -> throw VertxKuickstartException(
           "Array of Field type not allowed"
         )
-        List::class -> loadArray(itemsKClass, arr) { i ->
+        List::class -> loadArray(arrTypeKClass, arr) { i ->
           resolvedArrType.instantiateList(arr.getJsonArray(i), genericsMap)
         }
-        Map::class -> loadArray(itemsKClass, arr) {
+        Map::class -> loadArray(arrTypeKClass, arr) {
           resolvedArrType.instantiateMap(arr.getJsonObject(it), genericsMap)
         }
         JsonObject::class -> range.map { arr.getJsonObject(it) }.toTypedArray()
         JsonArray::class -> range.map { arr.getJsonArray(it) }.toTypedArray()
         else ->
-          if (itemsKClass.isEnum) {
-            range.map { itemsKClass.instantiateEnum(arr.getString(it)) }
-              .toTypedArray()
-          } else if (itemsKClass.java.isArray) {
-            loadArray(itemsKClass, arr) { i ->
-              resolvedArrType.instantiateArray(arr.getJsonArray(i), genericsMap)
+          when {
+            arrTypeKClass.isEnum -> {
+              range.map { arrTypeKClass.instantiateEnum(arr.getString(it)) }
+                .toTypedArray()
             }
-          } else {
-            loadArray(itemsKClass, arr) {
-              resolvedArrType.instantiate(arr.getJsonObject(it), genericsMap)
+            arrTypeKClass.java.isArray -> {
+              loadArray(arrTypeKClass, arr) { i ->
+                resolvedArrType.instantiateArray(
+                  arr.getJsonArray(i),
+                  genericsMap
+                )
+              }
+            }
+            else -> {
+              loadArray(arrTypeKClass, arr) {
+                resolvedArrType.instantiate(arr.getJsonObject(it), genericsMap)
+              }
             }
           }
       }
@@ -307,14 +319,18 @@ class DeserializerImpl: Deserializer {
           JsonObject::class -> map[key] = obj.getJsonObject(key)
           JsonArray::class -> map[key] = obj.getJsonArray(key)
           else ->
-            if (itemsKClass.isEnum) {
-              map[key] = itemsKClass.instantiateEnum(obj.getString(key))
-            } else if (itemsKClass.java.isArray) {
-              map[key] = resolvedType
-                .instantiateArray(obj.getJsonArray(key), genericsMap)
-            } else {
-              map[key] = resolvedType
-                .instantiate(obj.getJsonObject(key), genericsMap)
+            when {
+              itemsKClass.isEnum -> {
+                map[key] = itemsKClass.instantiateEnum(obj.getString(key))
+              }
+              itemsKClass.java.isArray -> {
+                map[key] = resolvedType
+                  .instantiateArray(obj.getJsonArray(key), genericsMap)
+              }
+              else -> {
+                map[key] = resolvedType
+                  .instantiate(obj.getJsonObject(key), genericsMap)
+              }
             }
         }
       }
@@ -356,21 +372,28 @@ class DeserializerImpl: Deserializer {
         )
         JsonArray::class -> Field(json.getJsonArray(key), json.containsKey(key))
         else ->
-          if (itemsKClass.isEnum) {
-            Field(
-              itemsKClass.instantiateEnum(json.getString(key)),
-              json.containsKey(key)
-            )
-          } else if (itemsKClass.java.isArray) {
-            Field(
-              resolvedType.instantiateArray(json.getJsonArray(key), genericsMap),
-              json.containsKey(key)
-            )
-          } else {
-            Field(
-              resolvedType.instantiate(json.getJsonObject(key), genericsMap),
-              json.containsKey(key)
-            )
+          when {
+            itemsKClass.isEnum -> {
+              Field(
+                itemsKClass.instantiateEnum(json.getString(key)),
+                json.containsKey(key)
+              )
+            }
+            itemsKClass.java.isArray -> {
+              Field(
+                resolvedType.instantiateArray(
+                  json.getJsonArray(key),
+                  genericsMap
+                ),
+                json.containsKey(key)
+              )
+            }
+            else -> {
+              Field(
+                resolvedType.instantiate(json.getJsonObject(key), genericsMap),
+                json.containsKey(key)
+              )
+            }
           }
       }
     }
@@ -441,7 +464,7 @@ class DeserializerImpl: Deserializer {
         }
       }
       val arrStr =
-        (1..nestingLevel).map { "[" }.joinToString(separator = "")
+        (1..nestingLevel).joinToString(separator = "") { "[" }
       "$arrStr$resolvedName"
     } else {
       val generic = genericsMap[typeName]
