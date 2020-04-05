@@ -4,6 +4,7 @@ import dev.fuelyour.exceptions.VertxKuickstartException
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import java.lang.ClassCastException
+import java.lang.NumberFormatException
 import java.lang.reflect.GenericArrayType
 import java.lang.reflect.ParameterizedType
 import java.lang.reflect.Type
@@ -296,8 +297,30 @@ class DeserializerImpl: Deserializer {
       val keyResolvedType = keyGenericType.resolve(genericsMap)
       val keyKClass = keyResolvedType.resolveKClass(genericsMap)
       val keyTransformer: (String) -> Any = when (keyKClass) {
-        String::class -> {it -> it}
-        else -> throw VertxKuickstartException("Unsupported key type for map")
+        String::class -> { key -> key }
+        Int::class -> { key ->
+          try {
+            key.toInt()
+          } catch (e: NumberFormatException) {
+            throw VertxKuickstartException(
+              "Cannot convert key value \"$key\" to Int",
+              e
+            )
+          }
+        }
+        Long::class -> { key ->
+          try {
+            key.toLong()
+          } catch (e: NumberFormatException) {
+            throw VertxKuickstartException(
+              "Cannot convert key value \"$key\" to Long",
+              e
+            )
+          }
+        }
+        else -> throw VertxKuickstartException(
+          "Unsupported key type for map: $keyResolvedType"
+        )
       }
 
       val genericType = type.getGenericType(1)

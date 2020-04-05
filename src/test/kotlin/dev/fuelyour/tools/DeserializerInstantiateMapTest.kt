@@ -150,14 +150,55 @@ class DeserializerInstantiateMapTest :
       }
     }
 
-    "Cannot instantiate a map where the key is not a String" {
+    "instantiate can instantiate a map where the key is an Int" {
       val json = jsonObjectOf("1" to "value")
+
+      val expected = mapOf(1 to "value")
+
+      val result = type<Map<Int, String>>().instantiate(json)
+
+      result shouldBe expected
+    }
+
+    "Failure to convert key String to Int gives informative message" {
+      val json = jsonObjectOf("key" to "value")
 
       val exception = shouldThrow<VertxKuickstartException> {
         type<Map<Int, String>>().instantiate(json)
       }
 
-      exception.message shouldBe "Unsupported key type for map"
+      exception.message shouldBe "Cannot convert key value \"key\" to Int"
+    }
+
+    "instantiate can instantiate a map where the key is a Long" {
+      val json = jsonObjectOf("1" to "value")
+
+      val expected = mapOf(1L to "value")
+
+      val result = type<Map<Long, String>>().instantiate(json)
+
+      result shouldBe expected
+    }
+
+    "Failure to convert key String to Long gives informative message" {
+      val json = jsonObjectOf("key" to "value")
+
+      val exception = shouldThrow<VertxKuickstartException> {
+        type<Map<Long, String>>().instantiate(json)
+      }
+
+      exception.message shouldBe "Cannot convert key value \"key\" to Long"
+    }
+
+    "Cannot instantiate a map with a complex key" {
+      val json = jsonObjectOf("1: 2" to "value")
+
+      val exception = shouldThrow<VertxKuickstartException> {
+        type<Map<Map<Int, Int>, String>>().instantiate(json)
+      }
+
+      exception.message shouldBe "Unsupported key type for map: " +
+          "java.util.Map<java.lang.Integer, ? extends java.lang.Integer>"
     }
 
     //Todo test Map<String, Array>
