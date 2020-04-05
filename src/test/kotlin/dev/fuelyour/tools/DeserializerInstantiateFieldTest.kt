@@ -80,7 +80,7 @@ class DeserializerInstantiateFieldTest :
           mapOf("key" to Field(value=TestDataClass(1), present=true))
         )
       ) { type, json, expected ->
-        val result = type.instantiateMap(json)
+        val result = type.instantiate(json)
         result shouldBe expected
       }
     }
@@ -89,7 +89,7 @@ class DeserializerInstantiateFieldTest :
       val json = jsonObjectOf("key" to "value")
 
       val exception = shouldThrow<VertxKuickstartException> {
-        type<Map<String, Field<Field<String>>>>().instantiateMap(json)
+        type<Map<String, Field<Field<String>>>>().instantiate(json)
       }
 
       exception.message shouldBe "Field of Field type not allowed"
@@ -99,7 +99,7 @@ class DeserializerInstantiateFieldTest :
     "A Field of ByteArray is allowed" {
       val json = JsonObject().put("key", ByteArray(1) { 0.toByte()})
 
-      val result = type<Map<String, Field<ByteArray>>>().instantiateMap(json)
+      val result = type<Map<String, Field<ByteArray>>>().instantiate(json)
       result shouldNotBe null
       result?.let { result ->
         result.size shouldBe 1

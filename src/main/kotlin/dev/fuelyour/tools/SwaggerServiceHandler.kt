@@ -128,8 +128,8 @@ class SwaggerServiceHandler(
     return when (val kclass = fullParam.kclass) {
       JsonObject::class -> context.bodyAsJson
       JsonArray::class -> context.bodyAsJsonArray
-      List::class -> fullParam.type.instantiateList(context.bodyAsJsonArray)
-      Map::class -> fullParam.type.instantiateMap(context.bodyAsJson)
+      List::class -> fullParam.type.instantiate(context.bodyAsJsonArray)
+      Map::class -> fullParam.type.instantiate(context.bodyAsJson)
       ByteArray::class,
       Boolean::class,
       Double::class,

@@ -7,7 +7,6 @@ import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.sqlclient.preparedQueryAwait
 import io.vertx.sqlclient.SqlClient
 import io.vertx.sqlclient.Tuple
-import kotlin.reflect.KClass
 
 interface AllQuery<T: Any> {
   companion object {

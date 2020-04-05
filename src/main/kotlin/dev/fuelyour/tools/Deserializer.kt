@@ -15,19 +15,31 @@ import kotlin.reflect.full.primaryConstructor
 import kotlin.reflect.jvm.javaConstructor
 import kotlin.reflect.jvm.javaMethod
 
-typealias ListType<T> = FullType<List<T>>
-typealias MapType<T> = FullType<Map<String, T>>
-
 interface Deserializer {
   fun <T: Any> FullType<T>.instantiate(json: JsonObject?): T?
   fun Type.instantiate(json: JsonObject?): Any?
-  fun <T: Any> ListType<T>.instantiateList(arr: JsonArray?): List<T?>?
-  fun Type.instantiateList(arr: JsonArray?): List<Any?>?
-  fun <T: Any> MapType<T>.instantiateMap(obj: JsonObject?): Map<String, T?>?
-  fun Type.instantiateMap(obj: JsonObject?): Map<String, Any?>?
+  fun <T: Any> FullType<T>.instantiate(arr: JsonArray?): T?
+  fun Type.instantiate(arr: JsonArray?): Any?
 }
 
 class DeserializerImpl: Deserializer {
+
+  @Suppress("UNCHECKED_CAST")
+  override fun <T:Any> FullType<T>.instantiate(json: JsonObject?): T? =
+    type.instantiate(json) as T?
+
+  override fun Type.instantiate(json: JsonObject?): Any? =
+    when (resolveKClass(mapOf())) {
+      Map::class -> instantiateMap(json)
+      else -> instantiateObject(json)
+    }
+
+  @Suppress("UNCHECKED_CAST")
+  override fun <T:Any> FullType<T>.instantiate(arr: JsonArray?): T? =
+    type.instantiate(arr) as T?
+
+  override fun Type.instantiate(arr: JsonArray?): Any? =
+    instantiateList(arr)
 
   private val KFunction<*>.declaringClass: Class<*>
     get() =
@@ -36,11 +48,7 @@ class DeserializerImpl: Deserializer {
         ?: throw VertxKuickstartException(
           "Unable to find Java reflection info for $this")
 
-  @Suppress("UNCHECKED_CAST")
-  override fun <T: Any> FullType<T>.instantiate(json: JsonObject?): T? =
-    type.instantiate(json) as T?
-
-  override fun Type.instantiate(json: JsonObject?): Any? =
+  private fun Type.instantiateObject(json: JsonObject?): Any? =
     instantiate(json, mapOf())
 
   fun Type.instantiate(
@@ -146,13 +154,7 @@ class DeserializerImpl: Deserializer {
     }
   }
 
-  @Suppress("UNCHECKED_CAST")
-  override fun <T: Any> ListType<T>.instantiateList(
-    arr: JsonArray?
-  ): List<T?>? =
-    this.type.instantiateList(arr) as List<T?>?
-
-  override fun Type.instantiateList(arr: JsonArray?): List<Any?>? =
+  private fun Type.instantiateList(arr: JsonArray?): List<Any?>? =
     instantiateList(arr, mapOf())
 
   private fun Type.instantiateList(
@@ -281,54 +283,57 @@ class DeserializerImpl: Deserializer {
     return outerArray as Array<T>
   }
 
-  @Suppress("UNCHECKED_CAST")
-  override fun <T: Any> MapType<T>.instantiateMap(
-    obj: JsonObject?
-  ): Map<String, T?>? =
-    type.instantiateMap(obj) as Map<String, T?>?
-
-  override fun Type.instantiateMap(obj: JsonObject?): Map<String, Any?>? =
+  private fun Type.instantiateMap(obj: JsonObject?): Map<Any, Any?>? =
     instantiateMap(obj, mapOf())
 
   private fun Type.instantiateMap(
     obj: JsonObject?,
     genericsMap: Map<String, Type>
-  ): Map<String, Any?>? {
+  ): Map<Any, Any?>? {
     if (obj == null) return null
     return this.let { type ->
+      val keyGenericType = type.getGenericType(0)
+      val keyResolvedType = keyGenericType.resolve(genericsMap)
+      val keyKClass = keyResolvedType.resolveKClass(genericsMap)
+      val keyTransformer: (String) -> Any = when (keyKClass) {
+        String::class -> {it -> it}
+        else -> throw VertxKuickstartException("Unsupported key type for map")
+      }
+
       val genericType = type.getGenericType(1)
       val resolvedType = genericType.resolve(genericsMap)
       val itemsKClass = resolvedType.resolveKClass(genericsMap)
-      val map = mutableMapOf<String, Any?>()
+      val map = mutableMapOf<Any, Any?>()
       obj.forEach { (key, _) ->
         when (itemsKClass) {
-          ByteArray::class -> map[key] = obj.getBinary(key)
-          Boolean::class -> map[key] = obj.getBoolean(key)
-          Double::class -> map[key] = obj.getDouble(key)
-          Float::class -> map[key] = obj.getFloat(key)
-          Instant::class -> map[key] = obj.getInstant(key)
-          Int::class -> map[key] = obj.getInteger(key)
-          Long::class -> map[key] = obj.getLong(key)
-          String::class -> map[key] = obj.getString(key)
-          Field::class -> map[key] =
+          ByteArray::class -> map[keyTransformer(key)] = obj.getBinary(key)
+          Boolean::class -> map[keyTransformer(key)] = obj.getBoolean(key)
+          Double::class -> map[keyTransformer(key)] = obj.getDouble(key)
+          Float::class -> map[keyTransformer(key)] = obj.getFloat(key)
+          Instant::class -> map[keyTransformer(key)] = obj.getInstant(key)
+          Int::class -> map[keyTransformer(key)] = obj.getInteger(key)
+          Long::class -> map[keyTransformer(key)] = obj.getLong(key)
+          String::class -> map[keyTransformer(key)] = obj.getString(key)
+          Field::class -> map[keyTransformer(key)] =
             resolvedType.instantiateField(obj, genericsMap, key)
-          List::class -> map[key] =
+          List::class -> map[keyTransformer(key)] =
             resolvedType.instantiateList(obj.getJsonArray(key), genericsMap)
-          Map::class -> map[key] =
+          Map::class -> map[keyTransformer(key)] =
             resolvedType.instantiateMap(obj.getJsonObject(key), genericsMap)
-          JsonObject::class -> map[key] = obj.getJsonObject(key)
-          JsonArray::class -> map[key] = obj.getJsonArray(key)
+          JsonObject::class -> map[keyTransformer(key)] = obj.getJsonObject(key)
+          JsonArray::class -> map[keyTransformer(key)] = obj.getJsonArray(key)
           else ->
             when {
               itemsKClass.isEnum -> {
-                map[key] = itemsKClass.instantiateEnum(obj.getString(key))
+                map[keyTransformer(key)] =
+                  itemsKClass.instantiateEnum(obj.getString(key))
               }
               itemsKClass.java.isArray -> {
-                map[key] = resolvedType
+                map[keyTransformer(key)] = resolvedType
                   .instantiateArray(obj.getJsonArray(key), genericsMap)
               }
               else -> {
-                map[key] = resolvedType
+                map[keyTransformer(key)] = resolvedType
                   .instantiate(obj.getJsonObject(key), genericsMap)
               }
             }

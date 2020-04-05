@@ -23,19 +23,19 @@ class DeserializerInstantiateListTest :
     Deserializer by DeserializerImpl(), StringSpec() {
 
   init {
-    "FullType.instantiateList can instantiate lists and keep type info" {
+    "FullType.instantiate can instantiate lists and keep type info" {
       val json1 = jsonArrayOf("value1", "value2")
       val expected1 = listOf("value1", "value2")
-      val result1: List<String?>? = type<List<String>>().instantiateList(json1)
+      val result1: List<String?>? = type<List<String>>().instantiate(json1)
       result1 shouldBe expected1
 
       val json2 = jsonArrayOf(1.3, 2.5, 3.6)
       val expected2 = listOf(1.3, 2.5, 3.6)
-      val result2: List<Double?>? = type<List<Double>>().instantiateList(json2)
+      val result2: List<Double?>? = type<List<Double>>().instantiate(json2)
       result2 shouldBe expected2
     }
 
-    "Type.instantiateList can instantiate lists, but loses the list type" {
+    "Type.instantiate can instantiate lists, but loses the list type" {
       forall(
         row(
           type<List<Boolean>>().type,
@@ -99,38 +99,38 @@ class DeserializerInstantiateListTest :
           listOf(TestDataClass(1))
         )
       ) { type, json, expected ->
-        val result: List<Any?>? = type.instantiateList(json)
+        val result: Any? = type.instantiate(json)
         result shouldBe expected
       }
     }
 
-    "instantiateList will return null when it is given null" {
+    "instantiate will return null when it is given null" {
       val json: JsonArray? = null
 
-      val result = type<List<String>>().instantiateList(json)
+      val result = type<List<String>>().instantiate(json)
 
       result shouldBe null
     }
 
-    "instantiateList will not instantiate a list of Field type" {
+    "instantiate will not instantiate a list of Field type" {
       val json = jsonArrayOf("Test", null)
 
       val exception = shouldThrow<VertxKuickstartException> {
-        type<List<Field<String>>>().instantiateList(json)
+        type<List<Field<String>>>().instantiate(json)
       }
       exception.message shouldBe "List of Field type not allowed"
     }
 
     @Suppress("NAME_SHADOWING")
-    "instantiateList can instantiate a list of ByteArrays" {
+    "instantiate can instantiate a list of ByteArrays" {
       val json = JsonArray().add(ByteArray(1) { 0.toByte()})
 
-      val result = type<List<ByteArray>>().instantiateList(json)
+      val result = type<List<ByteArray>>().instantiate(json)
       result shouldNotBe null
       result?.let { result ->
         result.size shouldBe 1
         result[0] shouldNotBe null
-        result[0]?.let { bytes ->
+        result[0].let { bytes ->
           bytes[0] shouldBe 0.toByte()
         }
       }

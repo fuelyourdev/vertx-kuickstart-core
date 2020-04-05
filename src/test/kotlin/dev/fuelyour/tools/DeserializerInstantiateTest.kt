@@ -204,7 +204,7 @@ class DeserializerInstantiateTest :
     "instantiate returns null if the json is null" {
       data class MyClass(val myParam: Int)
 
-      type<MyClass>().instantiate(null) shouldBe null
+      type<MyClass>().instantiate(null as JsonObject?) shouldBe null
     }
 
     "instantiate expects the class to have a primary constructor" {

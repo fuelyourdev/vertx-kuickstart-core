@@ -17,21 +17,21 @@ class DeserializerInstantiateMapTest :
     Deserializer by DeserializerImpl(), StringSpec() {
 
   init {
-    "FullType.instantiateMap can instantiate maps and keep type info" {
+    "FullType.instantiate can instantiate maps and keep type info" {
       val json1 = jsonObjectOf("key1" to "value1", "key2" to "value2")
       val expected1 = mapOf("key1" to "value1", "key2" to "value2")
       val result1: Map<String, String?>? =
-        type<Map<String, String>>().instantiateMap(json1)
+        type<Map<String, String>>().instantiate(json1)
       result1 shouldBe expected1
 
       val json2 = jsonObjectOf("key1" to 1, "key2" to 2)
       val expected2 = mapOf("key1" to 1, "key2" to 2)
       val result2: Map<String, Int?>? =
-        type<Map<String, Int>>().instantiateMap(json2)
+        type<Map<String, Int>>().instantiate(json2)
       result2 shouldBe expected2
     }
 
-    "Type.instantiateMap can instantiate maps, but loses the map type" {
+    "Type.instantiate can instantiate maps, but loses the map type" {
       forall(
         row(
           type<Map<String, Boolean>>().type,
@@ -110,36 +110,36 @@ class DeserializerInstantiateMapTest :
           mapOf("key" to TestDataClass(1))
         )
       ) { type, json, expected ->
-        val result: Map<String, Any?>? = type.instantiateMap(json)
+        val result: Any? = type.instantiate(json)
         result shouldBe expected
       }
     }
 
-    "instantiateMap will return null when it is given null" {
+    "instantiate will return null when it is given null" {
       val json: JsonObject? = null
 
-      val result = type<Map<String, String>>().instantiateMap(json)
+      val result = type<Map<String, String>>().instantiate(json)
 
       result shouldBe null
     }
 
-    "instantiateMap can instantiate a map of Field type" {
+    "instantiate can instantiate a map of Field type" {
       val json = jsonObjectOf("key1" to "Test", "key2" to null)
       val expected = mapOf(
         "key1" to Field("Test", true),
         "key2" to Field(null, true)
       )
 
-      val result = type<Map<String, Field<String>>>().instantiateMap(json)
+      val result = type<Map<String, Field<String>>>().instantiate(json)
 
       result shouldBe expected
     }
 
     @Suppress("NAME_SHADOWING")
-    "instantiateMap can instantiate a map of ByteArrays" {
+    "instantiate can instantiate a map of ByteArrays" {
       val json = JsonObject().put("key", ByteArray(1) { 0.toByte()})
 
-      val result = type<Map<String, ByteArray>>().instantiateMap(json)
+      val result = type<Map<String, ByteArray>>().instantiate(json)
       result shouldNotBe null
       result?.let { result ->
         result.size shouldBe 1
@@ -157,7 +157,7 @@ class DeserializerInstantiateMapTest :
         type<Map<Int, String>>().instantiate(json)
       }
 
-      exception.message shouldBe "Map is missing a primary constructor"
+      exception.message shouldBe "Unsupported key type for map"
     }
 
     //Todo test Map<String, Array>
