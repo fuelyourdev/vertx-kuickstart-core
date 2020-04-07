@@ -201,6 +201,8 @@ class DeserializerInstantiateMapTest :
           "java.util.Map<java.lang.Integer, ? extends java.lang.Integer>"
     }
 
+    //Todo add other key types
+    //todo test generic keys
     //Todo test Map<String, Array>
   }
 }

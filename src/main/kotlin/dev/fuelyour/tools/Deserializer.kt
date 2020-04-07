@@ -32,6 +32,7 @@ class DeserializerImpl: Deserializer {
   override fun Type.instantiate(json: JsonObject?): Any? =
     when (resolveKClass(mapOf())) {
       Map::class -> instantiateMap(json)
+      JsonObject::class -> json
       else -> instantiateObject(json)
     }
 
@@ -40,7 +41,11 @@ class DeserializerImpl: Deserializer {
     type.instantiate(arr) as T?
 
   override fun Type.instantiate(arr: JsonArray?): Any? =
-    instantiateList(arr)
+    when (resolveKClass(mapOf())) {
+      List::class -> instantiateList(arr)
+      JsonArray::class -> arr
+      else -> instantiateArray(arr)
+    }
 
   private val KFunction<*>.declaringClass: Class<*>
     get() =
@@ -206,6 +211,9 @@ class DeserializerImpl: Deserializer {
       }
     }
   }
+
+  private fun Type.instantiateArray(arr: JsonArray?): Any? =
+    instantiateArray(arr, mapOf())
 
   private fun Type.instantiateArray(
     arr: JsonArray?,

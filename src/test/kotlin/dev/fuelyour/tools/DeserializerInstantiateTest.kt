@@ -581,6 +581,14 @@ class DeserializerInstantiateTest :
       result5 shouldBe expected5
     }
 
+    "instantiate can instantiate a JsonObject" {
+      val json = jsonObjectOf("key" to "value")
+
+      val result = type<JsonObject>().instantiate(json)
+
+      result shouldBe json
+    }
+
     //todo test vararg
 
     //todo test array parameters

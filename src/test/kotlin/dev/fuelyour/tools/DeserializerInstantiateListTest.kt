@@ -136,6 +136,24 @@ class DeserializerInstantiateListTest :
       }
     }
 
+    "instantiate can instantiate an array of Strings" {
+      val json = jsonArrayOf("Hello", "World")
+
+      val expected = arrayOf("Hello", "World")
+
+      val result = type<Array<String>>().instantiate(json)
+
+      result shouldBe expected
+    }
+
+    "instantiate can instantiate JsonArray" {
+      val json = jsonArrayOf("Hello", "World")
+
+      val result = type<JsonArray>().instantiate(json)
+
+      result shouldBe json
+    }
+
     //Todo test arrays
   }
 }
