@@ -57,6 +57,12 @@ tasks {
   }
 }
 
+val sourcesJar by tasks.creating(Jar::class) {
+  dependsOn(JavaPlugin.CLASSES_TASK_NAME)
+  classifier = "sources"
+  from(sourceSets["main"].allSource)
+}
+
 val dokkaJar by tasks.creating(Jar::class) {
   group = JavaBasePlugin.DOCUMENTATION_GROUP
   description = "Assembles Kotlin docs with Dokka"
@@ -68,6 +74,7 @@ publishing {
   publications {
     create<MavenPublication>("default") {
       from(components["java"])
+      artifact(sourcesJar)
       artifact(dokkaJar)
     }
   }
