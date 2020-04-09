@@ -1,11 +1,13 @@
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import org.gradle.jvm.tasks.Jar
 
 plugins {
-  kotlin("jvm")
+  kotlin("jvm") version "1.3.50"
+  id("org.jetbrains.dokka") version "0.10.1"
+  `maven-publish`
 }
 
-group = "dev.fuelyour.vertx-kuickstart-core"
-version = "1.0-SNAPSHOT"
+group = "dev.fuelyour"
+version = "0.0.1-SNAPSHOT"
 
 repositories {
   mavenCentral()
@@ -27,6 +29,7 @@ dependencies {
   implementation("io.vertx:vertx-lang-kotlin-coroutines:$vertxVersion")
   implementation("org.flywaydb:flyway-core:6.0.0")
   implementation("org.reflections:reflections:0.9.11")
+  implementation("org.apache.logging.log4j:log4j-slf4j-impl:2.13.1")
   implementation("org.apache.commons:commons-collections4:4.0")
 
   testImplementation("io.mockk:mockk:1.9.3")
@@ -46,6 +49,31 @@ tasks {
     testLogging {
       events("passed", "skipped", "failed")
       showStandardStreams = true
+    }
+  }
+  dokka {
+    outputFormat = "html"
+    outputDirectory = "$buildDir/dokka"
+  }
+}
+
+val dokkaJar by tasks.creating(Jar::class) {
+  group = JavaBasePlugin.DOCUMENTATION_GROUP
+  description = "Assembles Kotlin docs with Dokka"
+  classifier = "javadoc"
+  from(tasks.dokka)
+}
+
+publishing {
+  publications {
+    create<MavenPublication>("default") {
+      from(components["java"])
+      artifact(dokkaJar)
+    }
+  }
+  repositories {
+    maven {
+      url = uri("$buildDir/repository")
     }
   }
 }
