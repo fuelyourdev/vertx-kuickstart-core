@@ -117,12 +117,12 @@ publishing {
   }
   repositories {
     maven {
-      val publishUrl = if (rootProject.extra["isReleaseVersion"] as Boolean) {
+      val repoUrl = if (rootProject.extra["isReleaseVersion"] as Boolean) {
         "https://oss.sonatype.org/service/local/staging/deploy/maven2"
       } else {
         "https://oss.sonatype.org/content/repositories/snapshots"
       }
-      url = uri(publishUrl)
+      url = uri(repoUrl)
       if (extra.has("ossrhUsername") && extra.has("ossrhPassword")) {
         credentials {
           username = extra["ossrhUsername"] as String
@@ -133,10 +133,8 @@ publishing {
   }
 }
 
-gradle.taskGraph.whenReady {
-  if (rootProject.extra["isReleaseVersion"] as Boolean && gradle.taskGraph.hasTask(":publish")) {
-    signing {
-      sign(publishing.publications["mavenJava"])
-    }
+if (rootProject.extra["isReleaseVersion"] as Boolean) {
+  signing {
+    sign(publishing.publications["mavenJava"])
   }
 }
