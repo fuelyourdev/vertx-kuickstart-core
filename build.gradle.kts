@@ -1,7 +1,7 @@
 import org.gradle.jvm.tasks.Jar
 
 group = "dev.fuelyour"
-version = "0.0.1-SNAPSHOT"
+version = "0.0.1"
 description = "Core libraries used by microservices created from the vertx-kuickstart template"
 extra["isReleaseVersion"] = !version.toString().endsWith("SNAPSHOT")
 
