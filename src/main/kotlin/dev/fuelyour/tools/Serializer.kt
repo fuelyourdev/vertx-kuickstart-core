@@ -11,6 +11,9 @@ data class Field<T>(
   val present: Boolean
 )
 
+/**
+ * Auto serialize objects to json
+ */
 interface Serializer {
   fun List<*>.serialize(): JsonArray
   fun <T: Any> T.serialize(): JsonObject

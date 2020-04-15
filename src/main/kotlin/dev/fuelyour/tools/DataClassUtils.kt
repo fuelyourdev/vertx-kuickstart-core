@@ -4,6 +4,11 @@ import kotlin.reflect.KProperty1
 import kotlin.reflect.full.declaredFunctions
 import kotlin.reflect.full.declaredMemberProperties
 
+/**
+ * Helper function for combining an object and a patch, such that patch fields override the fields in the object if
+ * they are present, otherwise the fields from the object come through. Note that the object and patch remain unchanged,
+ * and a new object is created and returned.
+ */
 @Suppress("UNCHECKED_CAST")
 fun <T:Any> T.applyPatch(patch: Any): T {
   if (this::class.isData) {

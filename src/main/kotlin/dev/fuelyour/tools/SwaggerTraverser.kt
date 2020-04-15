@@ -6,6 +6,10 @@ import io.swagger.v3.oas.models.PathItem
 import io.swagger.v3.parser.ResolverCache
 
 class SwaggerTraverser() {
+
+  /**
+   * Traverses the swagger file and performs the action specified by the specifyRoute lambda
+   */
   fun traverseSwaggerFile(
     swaggerFile: OpenAPI,
     specifyRoute: (SwaggerRoute) -> Unit
@@ -35,7 +39,7 @@ class SwaggerTraverser() {
     }
   }
 
-  fun processOperation(
+  private fun processOperation(
     op: Operation,
     srBuilder: SwaggerRouteBuilder,
     specifyRoute: (SwaggerRoute) -> Unit

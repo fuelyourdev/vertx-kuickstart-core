@@ -16,6 +16,9 @@ import kotlin.reflect.full.primaryConstructor
 import kotlin.reflect.jvm.javaConstructor
 import kotlin.reflect.jvm.javaMethod
 
+/**
+ * Auto deserialize json to the type given.
+ */
 interface Deserializer {
   fun <T: Any> FullType<T>.instantiate(json: JsonObject?): T?
   fun Type.instantiate(json: JsonObject?): Any?
@@ -520,6 +523,9 @@ class DeserializerImpl: Deserializer {
     }
 }
 
+/**
+ * Get the type of the class
+ */
 inline fun <reified T> type(): FullType<T> =
   type(object : TypeWrapper<T>() {}::class.java)
 

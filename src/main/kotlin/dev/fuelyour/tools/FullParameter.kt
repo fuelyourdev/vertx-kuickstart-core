@@ -8,6 +8,10 @@ import kotlin.reflect.KParameter
 import kotlin.reflect.jvm.javaType
 import kotlin.reflect.jvm.jvmErasure
 
+/**
+ * Gets and stores additional information about parameters so that the additional information is easily accessible
+ * when needed.
+ */
 class FullParameter internal constructor(
   val function: KFunction<*>,
   val param: KParameter

@@ -10,6 +10,9 @@ import io.vertx.kotlin.sqlclient.poolOptionsOf
 import io.vertx.pgclient.PgPool
 import io.vertx.sqlclient.SqlClient
 
+/**
+ * Establishes a connection to the database specified in the config, and maintains a connection pool to that database.
+ */
 class DatabaseAccess(config: JsonObject, vertx: Vertx) {
   private val pool: PgPool
 
@@ -26,6 +29,11 @@ class DatabaseAccess(config: JsonObject, vertx: Vertx) {
     pool = PgPool.pool(vertx, connectionOptions, poolOptions)
   }
 
+  /**
+   * Get a connection to the database.
+   *
+   * @param dbAction code block in which a connection to the database is available
+   */
   suspend fun <T : Any> getConnection(
     dbAction: suspend (SqlClient) -> T?
   ): T {
@@ -45,6 +53,12 @@ class DatabaseAccess(config: JsonObject, vertx: Vertx) {
     return result
   }
 
+  /**
+   * Get a transactional connection to the database. On success the transaction is committed. On error the transaction
+   * is rolled back.
+   *
+   * @param dbAction code block in which a connection to the database is available
+   */
   suspend fun <T : Any> getTransaction(
     dbAction: suspend (SqlClient) -> T?
   ): T {

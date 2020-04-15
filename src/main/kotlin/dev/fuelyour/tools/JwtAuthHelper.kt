@@ -14,6 +14,9 @@ import io.vertx.ext.web.handler.JWTAuthHandler
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 
+/**
+ * Verifies authentication according to information specified in the swagger doc.
+ */
 class JwtAuthHelper(
   config: JsonObject,
   vertx: Vertx

@@ -8,8 +8,22 @@ import io.vertx.kotlin.sqlclient.preparedQueryAwait
 import io.vertx.sqlclient.SqlClient
 import io.vertx.sqlclient.Tuple
 
+/**
+ * Simple mixin query for selecting all from a given table. The default implementation can be used with a call to the
+ * `impl` function, or a different implementation may be provided.
+ */
 interface AllQuery<T: Any> {
   companion object {
+    /**
+     * Provides the default implementation for AllQuery. Can be used as follows. Note that constant values should be
+     * passed for schema and table, as doing otherwise would risk sql injection.
+     *
+     * Example:
+     *
+     * ```
+     * class ExampleRepo: AllQuery<Example> by AllQuery.impl(schema="public", table="example")
+     * ```
+     */
     inline fun <reified T: Any> impl(
       schema: String, table: String
     ): AllQuery<T> =
@@ -18,6 +32,9 @@ interface AllQuery<T: Any> {
   suspend fun all(connection: SqlClient): List<T>
 }
 
+/**
+ * The default implementation for AllQuery. It returns all rows in the table.
+ */
 class AllQueryImpl<T: Any>(
   schema: String,
   table: String,
@@ -39,8 +56,22 @@ class AllQueryImpl<T: Any>(
   }
 }
 
+/**
+ * Simple mixin query for selecting a single row from a given table by id. The default implementation can be used with
+ * a call to the `impl` function, or a different implementation may be provided.
+ */
 interface FindQuery<T: Any> {
   companion object {
+    /**
+     * Provides the default implementation for FindQuery. Can be used as follows. Note that constant values should be
+     * passed for schema and table, as doing otherwise would risk sql injection.
+     *
+     * Example:
+     *
+     * ```
+     * class ExampleRepo: FindQuery<Example> by FindQuery.impl(schema="public", table="example")
+     * ```
+     */
     inline fun <reified T: Any> impl(
       schema: String, table: String
     ): FindQuery<T> =
@@ -49,6 +80,9 @@ interface FindQuery<T: Any> {
   suspend fun find(id: String, connection: SqlClient): T
 }
 
+/**
+ * The default implementation for FindQuery. It returns a single row in the table by id.
+ */
 class FindQueryImpl<T: Any>(
   schema: String,
   table: String,
@@ -74,8 +108,22 @@ class FindQueryImpl<T: Any>(
   }
 }
 
+/**
+ * Simple mixin query for inserting a single row into a given table. The default implementation can be used with a call
+ * to the `impl` function, or a different implementation may be provided.
+ */
 interface InsertQuery<T: Any, R: Any> {
   companion object {
+    /**
+     * Provides the default implementation for InsertQuery. Can be used as follows. Note that constant values should be
+     * passed for schema and table, as doing otherwise would risk sql injection.
+     *
+     * Example:
+     *
+     * ```
+     * class ExampleRepo: InsertQuery<Example> by InsertQuery.impl(schema="public", table="example")
+     * ```
+     */
     inline fun <T: Any, reified R: Any> impl(
       schema: String, table: String
     ): InsertQuery<T, R> =
@@ -90,6 +138,9 @@ interface InsertQuery<T: Any, R: Any> {
   suspend fun insert(toInsert: T, connection: SqlClient): R
 }
 
+/**
+ * The default implementation for InsertQuery. It inserts a single row into the table.
+ */
 class InsertQueryImpl<T: Any, R: Any>(
   schema: String,
   table: String,
@@ -113,8 +164,22 @@ class InsertQueryImpl<T: Any, R: Any>(
   }
 }
 
+/**
+ * Simple mixin query for updating a single from a given table based on id. The default implementation can be used with
+ * a call to the `impl` function, or a different implementation may be provided.
+ */
 interface UpdateQuery<T: Any, R: Any> {
   companion object {
+    /**
+     * Provides the default implementation for UpdateQuery. Can be used as follows. Note that constant values should be
+     * passed for schema and table, as doing otherwise would risk sql injection.
+     *
+     * Example:
+     *
+     * ```
+     * class ExampleRepo: UpdateQuery<Example> by UpdateQuery.impl(schema="public", table="example")
+     * ```
+     */
     inline fun <T: Any, reified R: Any> impl(
       schema: String, table: String
     ): UpdateQuery<T, R> =
@@ -129,6 +194,9 @@ interface UpdateQuery<T: Any, R: Any> {
   suspend fun update(id: String, toUpdate: T, connection: SqlClient): R
 }
 
+/**
+ * The default implementation for UpdateQuery. It updates a single row in the table by id.
+ */
 class UpdateQueryImpl<T: Any, R: Any>(
   schema: String,
   table: String,
@@ -156,14 +224,31 @@ class UpdateQueryImpl<T: Any, R: Any>(
   }
 }
 
+/**
+ * Simple mixin query for deleting a single ron from a given table based on id. The default implementation can be used
+ * with a call to the `impl` function, or a different implementation may be provided.
+ */
 interface DeleteQuery {
   companion object {
+    /**
+     * Provides the default implementation for DeleteQuery. Can be used as follows. Note that constant values should be
+     * passed for schema and table, as doing otherwise would risk sql injection.
+     *
+     * Example:
+     *
+     * ```
+     * class ExampleRepo: DeleteQuery<Example> by DeleteQuery.impl(schema="public", table="example")
+     * ```
+     */
     fun impl(schema: String, table: String): DeleteQuery =
       DeleteQueryImpl(schema, table)
   }
   suspend fun delete(id: String, connection: SqlClient): String
 }
 
+/**
+ * The default implementation for DeleteQuery. It deletes a single row in the table by id.
+ */
 class DeleteQueryImpl(schema: String, table: String): DeleteQuery {
 
   private val tableName = "$schema.$table"

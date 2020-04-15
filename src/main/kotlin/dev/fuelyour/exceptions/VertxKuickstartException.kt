@@ -1,5 +1,9 @@
 package dev.fuelyour.exceptions
 
+/**
+ * Base exception for vertx-quickstart-core libraries to inform users of the core libraries of misuse of the core
+ * libraries.
+ */
 class VertxKuickstartException: Exception {
 
   constructor(message: String): super(message)

@@ -6,6 +6,9 @@ import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.core.json.Json
 import io.vertx.kotlin.core.json.obj
 
+/**
+ * Base exception class to allow the return of nicely formatted error messages to the callers of the web service api.
+ */
 open class ResponseCodeException(
   message: String = "",
   val details: JsonArray = JsonArray(),

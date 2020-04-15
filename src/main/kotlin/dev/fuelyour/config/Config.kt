@@ -11,6 +11,9 @@ import kotlinx.coroutines.runBlocking
 
 private lateinit var retriever: ConfigRetriever
 
+/**
+ * Get Vertx configuration based on configuration in config.json file
+ */
 fun Vertx.config(): JsonObject {
   if (!::retriever.isInitialized) initRetriever()
 

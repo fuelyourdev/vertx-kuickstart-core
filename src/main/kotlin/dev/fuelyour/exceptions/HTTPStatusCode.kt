@@ -1,5 +1,10 @@
 package dev.fuelyour.exceptions
 
+/**
+ * Enum representing http status codes.
+ *
+ * @property value The status code number
+ */
 enum class HTTPStatusCode(val value: Int) {
   OK(200),
   CREATED(201),

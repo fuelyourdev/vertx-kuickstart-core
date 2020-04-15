@@ -29,6 +29,9 @@ interface ControllerSupplier {
   fun getControllerInstance(controllerName: String): Any
 }
 
+/**
+ * Builds out service handlers for routing to the controllers
+ */
 class SwaggerServiceHandler(
   private val controllerSupplier: ControllerSupplier,
   serializer: Serializer,

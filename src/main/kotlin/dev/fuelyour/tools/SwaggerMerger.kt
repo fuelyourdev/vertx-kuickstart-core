@@ -8,6 +8,10 @@ import org.apache.commons.collections4.ListUtils
 import org.reflections.Reflections
 import org.reflections.scanners.ResourcesScanner
 
+/**
+ * Merge multiple swagger documents into one. This allows swagger documents to be broken down into manageable pieces,
+ * and merged back together for final documentation generation.
+ */
 object SwaggerMerger {
 
   fun mergeAllInDirectory(path: String): OpenAPI? =

@@ -20,6 +20,10 @@ interface SwaggerAuthHandler {
   fun createAuthHandlers(roles: Roles): RouteHandlers
 }
 
+/**
+ * Authenticate requests and route to appropriate controllers and functions based off of specification in the swagger
+ * doc.
+ */
 class SwaggerRouter(
   private val swaggerAuthHandler: SwaggerAuthHandler,
   private val swaggerServiceHandler: SwaggerServiceHandler,
