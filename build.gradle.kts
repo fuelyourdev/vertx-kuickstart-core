@@ -123,16 +123,20 @@ publishing {
         "https://oss.sonatype.org/content/repositories/snapshots"
       }
       url = uri(publishUrl)
-      credentials {
-        username = extra["ossrhUsername"] as String
-        password = extra["ossrhPassword"] as String
+      if (extra.has("ossrhUsername") && extra.has("ossrhPassword")) {
+        credentials {
+          username = extra["ossrhUsername"] as String
+          password = extra["ossrhPassword"] as String
+        }
       }
     }
   }
 }
 
-if (rootProject.extra["isReleaseVersion"] as Boolean && gradle.taskGraph.hasTask("publish")) {
-  signing {
-    sign(publishing.publications["mavenJava"])
+gradle.taskGraph.whenReady {
+  if (rootProject.extra["isReleaseVersion"] as Boolean && gradle.taskGraph.hasTask(":publish")) {
+    signing {
+      sign(publishing.publications["mavenJava"])
+    }
   }
 }
