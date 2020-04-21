@@ -1,6 +1,6 @@
-package dev.fuelyour.tools
+package dev.fuelyour.vertxkuickstartcore.tools
 
-import dev.fuelyour.exceptions.VertxKuickstartException
+import dev.fuelyour.vertxkuickstartcore.exceptions.VertxKuickstartException
 import java.lang.reflect.Type
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction

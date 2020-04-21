@@ -1,4 +1,4 @@
-package dev.fuelyour.config
+package dev.fuelyour.vertxkuickstartcore.config
 
 import io.vertx.config.ConfigRetriever
 import io.vertx.core.Vertx

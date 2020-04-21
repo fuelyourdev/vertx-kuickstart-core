@@ -1,4 +1,4 @@
-package dev.fuelyour.tools
+package dev.fuelyour.vertxkuickstartcore.tools
 
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject

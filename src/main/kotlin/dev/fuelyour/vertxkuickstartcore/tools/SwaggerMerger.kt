@@ -1,4 +1,4 @@
-package dev.fuelyour.tools
+package dev.fuelyour.vertxkuickstartcore.tools
 
 import io.swagger.v3.oas.models.Components
 import io.swagger.v3.oas.models.OpenAPI

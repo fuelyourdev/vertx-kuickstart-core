@@ -1,6 +1,6 @@
-package dev.fuelyour.tools
+package dev.fuelyour.vertxkuickstartcore.tools
 
-import dev.fuelyour.exceptions.VertxKuickstartException
+import dev.fuelyour.vertxkuickstartcore.exceptions.VertxKuickstartException
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import java.lang.ClassCastException

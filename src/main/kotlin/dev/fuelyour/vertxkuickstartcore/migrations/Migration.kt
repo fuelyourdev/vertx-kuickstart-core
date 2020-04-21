@@ -1,4 +1,4 @@
-package dev.fuelyour.migrations
+package dev.fuelyour.vertxkuickstartcore.migrations
 
 import io.vertx.core.json.JsonObject
 import org.flywaydb.core.Flyway

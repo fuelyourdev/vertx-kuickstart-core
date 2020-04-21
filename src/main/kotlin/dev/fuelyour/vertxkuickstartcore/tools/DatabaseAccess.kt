@@ -1,9 +1,8 @@
-package dev.fuelyour.tools
+package dev.fuelyour.vertxkuickstartcore.tools
 
-import dev.fuelyour.exceptions.ModelNotFoundException
+import dev.fuelyour.vertxkuickstartcore.exceptions.ModelNotFoundException
 import io.vertx.core.json.JsonObject
 import io.vertx.core.Vertx
-import io.vertx.core.shareddata.impl.ClusterSerializable
 import io.vertx.kotlin.pgclient.pgConnectOptionsOf
 import io.vertx.kotlin.sqlclient.getConnectionAwait
 import io.vertx.kotlin.sqlclient.poolOptionsOf

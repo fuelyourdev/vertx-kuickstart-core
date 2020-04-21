@@ -1,12 +1,11 @@
-package dev.fuelyour.repositories
+package dev.fuelyour.vertxkuickstartcore.repositories
 
-import dev.fuelyour.exceptions.ModelNotFoundException
-import dev.fuelyour.tools.*
+import dev.fuelyour.vertxkuickstartcore.exceptions.ModelNotFoundException
+import dev.fuelyour.vertxkuickstartcore.tools.*
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.sqlclient.preparedQueryAwait
 import io.vertx.sqlclient.SqlClient
-import io.vertx.sqlclient.Tuple
 
 /**
  * Simple mixin query for selecting all from a given table. The default implementation can be used with a call to the
@@ -93,11 +92,10 @@ class FindQueryImpl<T: Any>(
   private val tableName = "$schema.$table"
 
   override suspend fun find(id: String, connection: SqlClient): T {
+    val query = "select * from $tableName where id = :id"
+    val positionalSql = toPositional(query, mapOf("id" to id))
     return connection
-      .preparedQueryAwait(
-        "select * from $tableName where id = $1",
-        Tuple.of(id)
-      )
+      .preparedQueryAwait(positionalSql.sql, positionalSql.params)
       .map { row ->
         val json = row.getValue("data")
           .let { it as JsonObject }
@@ -152,9 +150,10 @@ class InsertQueryImpl<T: Any, R: Any>(
   private val tableName = "$schema.$table"
 
   override suspend fun insert(toInsert: T, connection: SqlClient): R {
-    val query = "insert into $tableName (data) values ($1::jsonb) returning *"
+    val query = "insert into $tableName (data) values (:data::jsonb) returning *"
     val data = toInsert.serialize().also { it.remove("id") }
-    return connection.preparedQueryAwait(query, Tuple.of(data))
+    val positionalSql = toPositional(query, mapOf("data" to data))
+    return connection.preparedQueryAwait(positionalSql.sql, positionalSql.params)
       .map { row ->
         val json = row.getValue("data")
           .let { it as JsonObject }
@@ -212,9 +211,10 @@ class UpdateQueryImpl<T: Any, R: Any>(
     toUpdate: T,
     connection: SqlClient
   ): R {
-    val query = "update $tableName set data = $1 where id = $2 returning *"
+    val query = "update $tableName set data = :data where id = :id returning *"
     val data = toUpdate.serialize().also { it.remove("id") }
-    return connection.preparedQueryAwait(query, Tuple.of(data, id))
+    val positionalSql = toPositional(query, mapOf("id" to id, "data" to data))
+    return connection.preparedQueryAwait(positionalSql.sql, positionalSql.params)
       .map { row ->
         val json = row.getValue("data")
           .let { it as JsonObject }
@@ -254,8 +254,9 @@ class DeleteQueryImpl(schema: String, table: String): DeleteQuery {
   private val tableName = "$schema.$table"
 
   override suspend fun delete(id: String, connection: SqlClient): String {
-    val query = "delete from $tableName where id = $1 returning id"
-    return connection.preparedQueryAwait(query, Tuple.of(id))
+    val query = "delete from $tableName where id = :id returning id"
+    val positionalSql = toPositional(query, mapOf("id" to id))
+    return connection.preparedQueryAwait(positionalSql.sql, positionalSql.params)
       .map { row -> row.getString("id") }
       .firstOrNull()
       ?: throw ModelNotFoundException(

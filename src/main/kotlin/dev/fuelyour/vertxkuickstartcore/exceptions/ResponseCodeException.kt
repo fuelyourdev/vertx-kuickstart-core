@@ -1,6 +1,6 @@
-package dev.fuelyour.exceptions
+package dev.fuelyour.vertxkuickstartcore.exceptions
 
-import dev.fuelyour.exceptions.HTTPStatusCode.*
+import dev.fuelyour.vertxkuickstartcore.exceptions.HTTPStatusCode.*
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.core.json.Json

@@ -1,4 +1,4 @@
-package dev.fuelyour.exceptions
+package dev.fuelyour.vertxkuickstartcore.exceptions
 
 /**
  * Enum representing http status codes.

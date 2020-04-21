@@ -1,6 +1,6 @@
-package dev.fuelyour.tools
+package dev.fuelyour.vertxkuickstartcore.tools
 
-import dev.fuelyour.exceptions.AuthorizationException
+import dev.fuelyour.vertxkuickstartcore.exceptions.AuthorizationException
 import io.vertx.core.Handler
 import io.vertx.core.Vertx
 import io.vertx.core.json.JsonArray

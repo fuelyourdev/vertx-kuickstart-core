@@ -1,4 +1,4 @@
-package dev.fuelyour.exceptions
+package dev.fuelyour.vertxkuickstartcore.exceptions
 
 /**
  * Base exception for vertx-quickstart-core libraries to inform users of the core libraries of misuse of the core

@@ -1,4 +1,4 @@
-package dev.fuelyour.tools
+package dev.fuelyour.vertxkuickstartcore.tools
 
 import kotlin.reflect.KProperty1
 import kotlin.reflect.full.declaredFunctions

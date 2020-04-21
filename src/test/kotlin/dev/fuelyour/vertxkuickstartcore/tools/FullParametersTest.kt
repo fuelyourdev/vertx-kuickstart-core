@@ -1,8 +1,8 @@
 @file:Suppress("UNUSED_PARAMETER", "unused")
 
-package dev.fuelyour.tools
+package dev.fuelyour.vertxkuickstartcore.tools
 
-import dev.fuelyour.exceptions.VertxKuickstartException
+import dev.fuelyour.vertxkuickstartcore.exceptions.VertxKuickstartException
 import io.kotlintest.data.forall
 import io.kotlintest.shouldBe
 import io.kotlintest.shouldThrow

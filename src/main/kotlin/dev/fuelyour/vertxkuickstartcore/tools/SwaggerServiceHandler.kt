@@ -1,9 +1,9 @@
-package dev.fuelyour.tools
+package dev.fuelyour.vertxkuickstartcore.tools
 
-import dev.fuelyour.annotations.Timeout
-import dev.fuelyour.exceptions.HTTPStatusCode
-import dev.fuelyour.exceptions.ResponseCodeException
-import dev.fuelyour.exceptions.TimeoutException
+import dev.fuelyour.vertxkuickstartcore.annotations.Timeout
+import dev.fuelyour.vertxkuickstartcore.exceptions.HTTPStatusCode
+import dev.fuelyour.vertxkuickstartcore.exceptions.ResponseCodeException
+import dev.fuelyour.vertxkuickstartcore.exceptions.TimeoutException
 import io.swagger.v3.oas.models.Operation
 import io.swagger.v3.oas.models.parameters.Parameter
 import io.vertx.core.Handler

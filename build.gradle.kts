@@ -1,7 +1,7 @@
 import org.gradle.jvm.tasks.Jar
 
 group = "dev.fuelyour"
-version = "0.0.1"
+version = "0.0.2"
 description = "Core libraries used by microservices created from the vertx-kuickstart template"
 extra["isReleaseVersion"] = !version.toString().endsWith("SNAPSHOT")
 
@@ -32,6 +32,7 @@ dependencies {
   implementation(kotlin("stdlib"))
   implementation(kotlin("reflect"))
 
+  implementation("dev.fuelyour:named-to-positional-sql-params:0.0.3")
   implementation("io.vertx:vertx-core:$vertxVersion")
   implementation("io.vertx:vertx-web-api-contract:$vertxVersion")
   implementation("io.vertx:vertx-config:$vertxVersion")
