@@ -30,7 +30,7 @@ repositories {
 val vertxVersion = "3.8.1"
 
 dependencies {
-    implementation(kotlin("stdlib"))
+    implementation(kotlin("stdlib-jdk8"))
     implementation(kotlin("reflect"))
 
     implementation("dev.fuelyour:named-to-positional-sql-params:0.0.6")
@@ -47,7 +47,8 @@ dependencies {
     implementation("org.apache.commons:commons-collections4:4.0")
 
     testImplementation("io.mockk:mockk:1.9.3")
-    testImplementation("io.kotlintest:kotlintest-runner-junit5:3.3.2")
+    testImplementation("io.kotest:kotest-runner-junit5:4.0.5")
+    testImplementation("io.kotest:kotest-assertions-core-jvm:4.0.5")
 }
 
 tasks {
@@ -147,5 +148,5 @@ if (rootProject.extra["isReleaseVersion"] as Boolean) {
 
 nexusStaging {
     username = System.getenv("ossrhUsername")
-    password = System.getenv("ossrPassword")
+    password = System.getenv("ossrhPassword")
 }

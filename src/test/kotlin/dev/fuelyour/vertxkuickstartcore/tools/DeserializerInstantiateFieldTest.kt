@@ -1,12 +1,12 @@
 package dev.fuelyour.vertxkuickstartcore.tools
 
 import dev.fuelyour.vertxkuickstartcore.exceptions.VertxKuickstartException
-import io.kotlintest.data.forall
-import io.kotlintest.shouldBe
-import io.kotlintest.shouldNotBe
-import io.kotlintest.shouldThrow
-import io.kotlintest.specs.StringSpec
-import io.kotlintest.tables.row
+import io.kotest.assertions.throwables.shouldThrow
+import io.kotest.core.spec.style.StringSpec
+import io.kotest.data.row
+import io.kotest.data.forAll
+import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.core.json.jsonArrayOf
@@ -18,7 +18,7 @@ class DeserializerInstantiateFieldTest :
 
   init {
     "A field can be used for any of the standard types" {
-      forall(
+      forAll(
         row(
           type<Map<String, Field<Boolean>>>().type,
           jsonObjectOf("key" to true),

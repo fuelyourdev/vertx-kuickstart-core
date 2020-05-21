@@ -3,13 +3,14 @@
 package dev.fuelyour.vertxkuickstartcore.tools
 
 import dev.fuelyour.vertxkuickstartcore.exceptions.VertxKuickstartException
-import io.kotlintest.data.forall
-import io.kotlintest.shouldBe
-import io.kotlintest.shouldThrow
-import io.kotlintest.specs.StringSpec
-import io.kotlintest.tables.row
 import java.lang.reflect.ParameterizedType
 import kotlin.reflect.full.declaredFunctions
+import io.kotest.assertions.throwables.shouldThrow
+import io.kotest.core.spec.style.StringSpec
+import io.kotest.data.row
+import io.kotest.data.forAll
+import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 
 fun topLevelFunction(param1: Long, param2: Float) { }
 fun topLevelListFunction(param1: List<Long>, param2: List<Float>) { }
@@ -50,7 +51,7 @@ class FullParametersTest : StringSpec({
   val extensionFun = String::extensionFunction
 
   "fullParameters works for all types of constructors and functions" {
-    forall(
+    forAll(
       row(ctor, 0, String::class.java),
       row(ctor, 1, Int::class.java),
 
@@ -81,7 +82,7 @@ class FullParametersTest : StringSpec({
   }
 
   "FullParameter.name returns the name of the parameter, if available" {
-    forall(
+    forAll(
       row(ctor, 0, "param1"),
       row(ctor, 1, "param2"),
 
@@ -107,7 +108,7 @@ class FullParametersTest : StringSpec({
   }
 
   "FullParameter.name throws an exception, if unavailable" {
-    forall(
+    forAll(
       // For class functions, the first parameter is an instance
       // of the class
       row(classFun, 0),
@@ -125,7 +126,7 @@ class FullParametersTest : StringSpec({
   }
 
   "fullParameters throws IndexOutOfBoundsException" {
-    forall(
+    forAll(
       row(ctor, ctor.parameters.size),
       row(classFun, classFun.parameters.size),
       row(extensionFun, extensionFun.parameters.size),
@@ -148,7 +149,7 @@ class FullParametersTest : StringSpec({
   val listExtensionFun = List<String>::extensionListFunction
 
   "fullParameters can get the type of lists" {
-    forall(
+    forAll(
       row(listCtor, 0, String::class.java),
       row(listCtor, 1, Int::class.javaObjectType),
 
@@ -177,7 +178,7 @@ class FullParametersTest : StringSpec({
   }
 
   "FullParameter.kclass will get the KClass" {
-    forall(
+    forAll(
       row(ctor, 0, String::class),
       row(ctor, 1, Int::class),
 
