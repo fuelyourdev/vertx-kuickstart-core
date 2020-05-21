@@ -1,11 +1,10 @@
 package dev.fuelyour.vertxkuickstartcore.tools
 
 import dev.fuelyour.vertxkuickstartcore.exceptions.VertxKuickstartException
-import io.kotlintest.matchers.beInstanceOf
-import io.kotlintest.should
-import io.kotlintest.shouldBe
-import io.kotlintest.shouldThrow
-import io.kotlintest.specs.StringSpec
+import io.kotest.assertions.throwables.shouldThrow
+import io.kotest.core.spec.style.StringSpec
+import io.kotest.matchers.shouldBe
+import io.kotest.matchers.throwable.shouldHaveCauseInstanceOf
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.core.json.jsonArrayOf
@@ -189,7 +188,7 @@ class DeserializerInstantiateTest :
       }
       exception.message shouldBe "MyClass.myParam expects type Int " +
           "but was given the value: \"String\""
-      exception.cause should beInstanceOf<ClassCastException>()
+      exception.shouldHaveCauseInstanceOf<ClassCastException>()
     }
 
     "instantiate throws an exception if parameter is null and is not nullable" {
@@ -262,7 +261,7 @@ class DeserializerInstantiateTest :
       }
       exception.message shouldBe "ClassWithEnum.myEnum expects type MyEnum " +
           "but was given the value: 1"
-      exception.cause should beInstanceOf<ClassCastException>()
+      exception.shouldHaveCauseInstanceOf<ClassCastException>()
     }
 
     "instantiate for custom class with list generics shouldn't loose generics" {
