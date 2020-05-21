@@ -17,7 +17,7 @@ typealias Roles = Map<String, List<String>>
 typealias RouteHandlers = List<Handler<RoutingContext>>
 
 interface SwaggerAuthHandler {
-  fun createAuthHandlers(roles: Roles): RouteHandlers
+    fun createAuthHandlers(roles: Roles): RouteHandlers
 }
 
 /**
@@ -25,87 +25,89 @@ interface SwaggerAuthHandler {
  * doc.
  */
 class SwaggerRouter(
-  private val swaggerAuthHandler: SwaggerAuthHandler,
-  private val swaggerServiceHandler: SwaggerServiceHandler,
-  private val traverser: SwaggerTraverser
+    private val swaggerAuthHandler: SwaggerAuthHandler,
+    private val swaggerServiceHandler: SwaggerServiceHandler,
+    private val traverser: SwaggerTraverser
 ) {
 
-  companion object {
-    fun build(
-      swaggerAuthHandler: SwaggerAuthHandler,
-      controllerSupplier: ControllerSupplier,
-      serializer: Serializer,
-      deserializer: Deserializer
-    ):SwaggerRouter {
-      val swaggerServiceHandler = SwaggerServiceHandler(
-        controllerSupplier,
-        serializer,
-        deserializer
-      )
-      val swaggerTraverser = SwaggerTraverser()
-      val swaggerRouter = SwaggerRouter(
-        swaggerAuthHandler,
-        swaggerServiceHandler,
-        swaggerTraverser
-      )
-      return swaggerRouter
+    companion object {
+        fun build(
+            swaggerAuthHandler: SwaggerAuthHandler,
+            controllerSupplier: ControllerSupplier,
+            serializer: Serializer,
+            deserializer: Deserializer
+        ): SwaggerRouter {
+            val swaggerServiceHandler = SwaggerServiceHandler(
+                controllerSupplier,
+                serializer,
+                deserializer
+            )
+            val swaggerTraverser = SwaggerTraverser()
+            val swaggerRouter = SwaggerRouter(
+                swaggerAuthHandler,
+                swaggerServiceHandler,
+                swaggerTraverser
+            )
+            return swaggerRouter
+        }
     }
-  }
 
-  fun route(router: Router, swaggerFile: OpenAPI) {
-    router.route()
-      .produces("application/json")
-      .handler(BodyHandler.create().setBodyLimit(5120000))
-      .handler(TimeoutHandler.create(30000))
+    fun route(router: Router, swaggerFile: OpenAPI) {
+        router.route()
+            .produces("application/json")
+            .handler(BodyHandler.create().setBodyLimit(5120000))
+            .handler(TimeoutHandler.create(30000))
 
-    traverser.traverseSwaggerFile(swaggerFile) { swaggerRoute ->
-      specifyRoute(router, swaggerRoute)
+        traverser.traverseSwaggerFile(swaggerFile) { swaggerRoute ->
+            specifyRoute(router, swaggerRoute)
+        }
     }
-  }
 
-  private fun specifyRoute(router: Router, sr: SwaggerRoute) {
-    val route = router.route(
-      sr.verb.convertToVertxVerb(),
-      sr.path.convertToVertxPath()
-    )
-    route.handleJwtAuth(sr.authRoles)
-    route.handleRequestValidation(sr.op, sr.swaggerFile, sr.swaggerCache)
-    route.handleServiceCall(sr.op, sr.opId)
-  }
-
-  private fun String.convertToVertxPath() =
-    replace('{', ':').replace("}", "")
-
-  private fun PathItem.HttpMethod.convertToVertxVerb() =
-    HttpMethod.valueOf(name)
-
-  private fun Route.handleJwtAuth(roles: Roles) {
-    if (roles.isNotEmpty()) {
-      with(swaggerAuthHandler.createAuthHandlers(roles)) {
-        forEach { handler(it) }
-      }
+    private fun specifyRoute(router: Router, sr: SwaggerRoute) {
+        val route = router.route(
+            sr.verb.convertToVertxVerb(),
+            sr.path.convertToVertxPath()
+        )
+        route.handleJwtAuth(sr.authRoles)
+        route.handleRequestValidation(sr.op, sr.swaggerFile, sr.swaggerCache)
+        route.handleServiceCall(sr.op, sr.opId)
     }
-  }
 
-  private fun Route.handleRequestValidation(
-    op: Operation,
-    swaggerFile: OpenAPI,
-    swaggerCache: ResolverCache
-  ) {
-    handler(OpenAPI3RequestValidationHandlerImpl(
-      op,
-      op.parameters,
-      swaggerFile,
-      swaggerCache
-    ))
-  }
+    private fun String.convertToVertxPath() =
+        replace('{', ':').replace("}", "")
 
-  private fun Route.handleServiceCall(op: Operation, opId: String) {
-    with(swaggerServiceHandler.createServiceHandlers(op, opId)) {
-      forEach { handler(it) }
+    private fun PathItem.HttpMethod.convertToVertxVerb() =
+        HttpMethod.valueOf(name)
+
+    private fun Route.handleJwtAuth(roles: Roles) {
+        if (roles.isNotEmpty()) {
+            with(swaggerAuthHandler.createAuthHandlers(roles)) {
+                forEach { handler(it) }
+            }
+        }
     }
-    with(swaggerServiceHandler.createFailureHandlers()) {
-      forEach { handler(it) }
+
+    private fun Route.handleRequestValidation(
+        op: Operation,
+        swaggerFile: OpenAPI,
+        swaggerCache: ResolverCache
+    ) {
+        handler(
+            OpenAPI3RequestValidationHandlerImpl(
+                op,
+                op.parameters,
+                swaggerFile,
+                swaggerCache
+            )
+        )
     }
-  }
+
+    private fun Route.handleServiceCall(op: Operation, opId: String) {
+        with(swaggerServiceHandler.createServiceHandlers(op, opId)) {
+            forEach { handler(it) }
+        }
+        with(swaggerServiceHandler.createFailureHandlers()) {
+            forEach { handler(it) }
+        }
+    }
 }

@@ -15,20 +15,20 @@ private lateinit var retriever: ConfigRetriever
  * Get Vertx configuration based on configuration in config.json file
  */
 fun Vertx.config(): JsonObject {
-  if (!::retriever.isInitialized) initRetriever()
+    if (!::retriever.isInitialized) initRetriever()
 
-  return runBlocking {
-    if (retriever.cachedConfig.isEmpty) retriever.getConfigAwait()
-    else retriever.cachedConfig
-  }
+    return runBlocking {
+        if (retriever.cachedConfig.isEmpty) retriever.getConfigAwait()
+        else retriever.cachedConfig
+    }
 }
 
 private fun Vertx.initRetriever() {
-  val fileConfig = jsonObjectOf("path" to "config.json")
-  val stores = listOf(
-    configStoreOptionsOf(type = "file", config = fileConfig),
-    configStoreOptionsOf(type = "env")
-  )
-  val options = configRetrieverOptionsOf(stores = stores)
-  retriever = ConfigRetriever.create(this, options)
+    val fileConfig = jsonObjectOf("path" to "config.json")
+    val stores = listOf(
+        configStoreOptionsOf(type = "file", config = fileConfig),
+        configStoreOptionsOf(type = "env")
+    )
+    val options = configRetrieverOptionsOf(stores = stores)
+    retriever = ConfigRetriever.create(this, options)
 }

@@ -2,6 +2,7 @@ import org.gradle.jvm.tasks.Jar
 
 plugins {
     kotlin("jvm") version "1.3.72"
+    id("org.jmailen.kotlinter") version "2.3.2"
     id("org.jetbrains.dokka") version "0.10.1"
     signing
     `maven-publish`
