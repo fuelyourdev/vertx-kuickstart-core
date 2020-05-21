@@ -1,8 +1,8 @@
 package dev.fuelyour.vertxkuickstartcore.tools
 
 import io.vertx.sqlclient.Tuple
-import dev.fuelyour.namedtopositionalsqlparams.converter.convertNamedToPositional
-import dev.fuelyour.namedtopositionalsqlparams.converter.prepareNamedAsPositional
+import dev.fuelyour.namedToPositionalSqlParams.converter.convertNamedToPositional
+import dev.fuelyour.namedToPositionalSqlParams.converter.prepareNamedAsPositional
 
 data class PositionalSql(val sql: String, val params: Tuple)
 
