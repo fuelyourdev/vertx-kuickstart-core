@@ -10,7 +10,7 @@ plugins {
 }
 
 group = "dev.fuelyour"
-version = "0.0.3"
+version = "0.0.4"
 val projectDescription = "Core libraries used by microservices created from " +
     "the vertx-kuickstart template"
 description = projectDescription
@@ -150,4 +150,6 @@ if (rootProject.extra["isReleaseVersion"] as Boolean) {
 nexusStaging {
     username = System.getenv("ossrhUsername")
     password = System.getenv("ossrhPassword")
+    numberOfRetries = 60
+    delayBetweenRetriesInMillis = 5000
 }
