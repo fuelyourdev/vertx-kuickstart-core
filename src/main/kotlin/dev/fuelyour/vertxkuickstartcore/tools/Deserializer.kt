@@ -8,6 +8,8 @@ import java.lang.reflect.ParameterizedType
 import java.lang.reflect.Type
 import java.lang.reflect.WildcardType
 import java.time.Instant
+import java.util.UUID
+import kotlin.NoSuchElementException
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
 import kotlin.reflect.full.primaryConstructor
@@ -99,6 +101,7 @@ class DeserializerImpl : Deserializer {
                 Int::class -> json.getInteger(name)
                 Long::class -> json.getLong(name)
                 String::class -> json.getString(name)
+                UUID::class -> UUID.fromString(json.getString(name))
                 Field::class -> resolvedType.instantiateField(
                     json,
                     genericsMap,
@@ -201,6 +204,7 @@ class DeserializerImpl : Deserializer {
                 Int::class -> range.map { arr.getInteger(it) }
                 Long::class -> range.map { arr.getLong(it) }
                 String::class -> range.map { arr.getString(it) }
+                UUID::class -> range.map { UUID.fromString(arr.getString(it)) }
                 Field::class -> throw VertxKuickstartException(
                     "List of Field type not allowed"
                 )
@@ -286,6 +290,8 @@ class DeserializerImpl : Deserializer {
                 Int::class -> range.map { arr.getInteger(it) }.toTypedArray()
                 Long::class -> range.map { arr.getLong(it) }.toTypedArray()
                 String::class -> range.map { arr.getString(it) }.toTypedArray()
+                UUID::class -> range.map { UUID.fromString(arr.getString(it)) }
+                    .toTypedArray()
                 Field::class -> throw VertxKuickstartException(
                     "Array of Field type not allowed"
                 )
@@ -366,6 +372,7 @@ class DeserializerImpl : Deserializer {
             val keyKClass = keyResolvedType.resolveKClass(genericsMap)
             val keyTransformer: (String) -> Any = when (keyKClass) {
                 String::class -> { key -> key }
+                UUID::class -> { key -> UUID.fromString(key) }
                 Int::class -> { key ->
                     try {
                         key.toInt()
@@ -410,6 +417,8 @@ class DeserializerImpl : Deserializer {
                     Long::class -> map[keyTransformer(key)] = obj.getLong(key)
                     String::class -> map[keyTransformer(key)] =
                         obj.getString(key)
+                    UUID::class -> map[keyTransformer(key)] =
+                        UUID.fromString(obj.getString(key))
                     Field::class -> map[keyTransformer(key)] =
                         resolvedType.instantiateField(obj, genericsMap, key)
                     List::class -> map[keyTransformer(key)] =
@@ -487,6 +496,10 @@ class DeserializerImpl : Deserializer {
                 Long::class -> Field(json.getLong(key), json.containsKey(key))
                 String::class -> Field(
                     json.getString(key),
+                    json.containsKey(key)
+                )
+                UUID::class -> Field(
+                    UUID.fromString(json.getString(key)),
                     json.containsKey(key)
                 )
                 Field::class -> throw VertxKuickstartException(
