@@ -17,7 +17,7 @@ data class PreparedPositionalSql(
 
 fun toPositional(sql: String, params: Map<String, Any?>): PositionalSql =
     convertNamedToPositional(sql, params).let { (sql, params) ->
-        PositionalSql(sql, Tuple.tuple(params))
+        PositionalSql(sql, Tuple.wrap(params))
     }
 
 fun preparePositional(
@@ -26,6 +26,6 @@ fun preparePositional(
 ): PreparedPositionalSql =
     prepareNamedAsPositional(sql, paramNames).let { prepared ->
         PreparedPositionalSql(prepared.sql, prepared.paramNames) { params ->
-            Tuple.tuple(prepared.convertParams(params))
+            Tuple.wrap(prepared.convertParams(params))
         }
     }
