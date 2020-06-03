@@ -14,6 +14,7 @@ import io.vertx.ext.web.RoutingContext
 import io.vertx.kotlin.core.json.jsonObjectOf
 import java.lang.reflect.InvocationTargetException
 import java.time.Instant
+import java.util.UUID
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
 import kotlin.reflect.KParameter
@@ -172,6 +173,7 @@ class SwaggerServiceHandler(
         return when {
             param.isSubclassOf(Int::class) -> value.toInt()
             param.isSubclassOf(Boolean::class) -> value.toBoolean()
+            param.isSubclassOf(UUID::class) -> UUID.fromString(value)
             else -> value
         }
     }
@@ -203,13 +205,7 @@ class SwaggerServiceHandler(
                     .end(response.serialize().encode())
                 is Map<*, *> -> context.response()
                     .end(response.serialize().encode())
-                else -> if (response::class.isData) {
-                    context.response().end(response.serialize().encode())
-                } else {
-                    context.response().end(
-                        jsonObjectOf("response" to response.toString()).encode()
-                    )
-                }
+                else -> context.response().end(response.serialize().encode())
             }
         }
     }

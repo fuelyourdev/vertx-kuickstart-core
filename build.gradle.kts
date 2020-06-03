@@ -28,7 +28,7 @@ repositories {
     mavenCentral()
 }
 
-val vertxVersion = "3.8.1"
+val vertxVersion = "3.8.2"
 
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
