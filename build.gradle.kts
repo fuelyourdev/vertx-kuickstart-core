@@ -10,7 +10,7 @@ plugins {
 }
 
 group = "dev.fuelyour"
-version = "0.0.5-SNAPSHOT"
+version = "0.0.5"
 val projectDescription = "Core libraries used by microservices created from " +
     "the vertx-kuickstart template"
 description = projectDescription

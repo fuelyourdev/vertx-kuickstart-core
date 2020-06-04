@@ -109,16 +109,24 @@ class SwaggerServiceHandler(
             params[fullParam.param] = when {
                 fullParam.param.kind == KParameter.Kind.INSTANCE -> instance
                 fullParam.param.isSubclassOf(RoutingContext::class) -> context
-                else -> buildPathOrQueryParam(
-                    swaggerParams,
-                    fullParam.param,
-                    context
-                )
-                    ?: buildBodyParam(fullParam, context)
+                fullParam.param.isPathOrQueryParam(swaggerParams) ->
+                    buildPathOrQueryParam(
+                        swaggerParams,
+                        fullParam.param,
+                        context
+                    )
+                else -> buildBodyParam(fullParam, context)
             }
         }
         return params
     }
+
+    private fun KParameter.isPathOrQueryParam(
+        swaggerParams: List<Parameter>?
+    ) =
+        swaggerParams?.any {
+            it.name == name && (it.`in` == "path" || it.`in` == "query")
+        } ?: false
 
     private fun buildPathOrQueryParam(
         swaggerParams: List<Parameter>?,
