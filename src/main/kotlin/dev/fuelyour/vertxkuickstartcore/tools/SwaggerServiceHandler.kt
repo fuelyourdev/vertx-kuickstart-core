@@ -4,12 +4,15 @@ import dev.fuelyour.vertxkuickstartcore.annotations.Timeout
 import dev.fuelyour.vertxkuickstartcore.exceptions.HTTPStatusCode
 import dev.fuelyour.vertxkuickstartcore.exceptions.ResponseCodeException
 import dev.fuelyour.vertxkuickstartcore.exceptions.TimeoutException
+import dev.fuelyour.vertxkuickstartcore.exceptions.VertxKuickstartException
 import io.swagger.v3.oas.models.Operation
 import io.swagger.v3.oas.models.parameters.Parameter
+import io.swagger.v3.oas.models.parameters.RequestBody
 import io.vertx.core.Handler
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import io.vertx.core.shareddata.impl.ClusterSerializable
+import io.vertx.ext.web.FileUpload
 import io.vertx.ext.web.RoutingContext
 import io.vertx.kotlin.core.json.jsonObjectOf
 import java.lang.reflect.InvocationTargetException
@@ -60,7 +63,8 @@ class SwaggerServiceHandler(
                                 function.callWithParams(
                                     controller,
                                     context,
-                                    op.parameters
+                                    op.parameters,
+                                    op.requestBody
                                 )
                             }
                         } catch (ex: TimeoutCancellationException) {
@@ -83,10 +87,16 @@ class SwaggerServiceHandler(
     private suspend fun KFunction<*>.callWithParams(
         instance: Any?,
         context: RoutingContext,
-        swaggerParams: List<Parameter>?
+        swaggerParams: List<Parameter>?,
+        swaggerRequestBody: RequestBody?
     ) {
         try {
-            val params = buildParams(instance, context, swaggerParams)
+            val params = buildParams(
+                instance,
+                context,
+                swaggerParams,
+                swaggerRequestBody
+            )
             val response = callSuspendBy(params)
             handleResponse(context, response)
         } catch (e: InvocationTargetException) {
@@ -102,7 +112,8 @@ class SwaggerServiceHandler(
     private fun KFunction<*>.buildParams(
         instance: Any?,
         context: RoutingContext,
-        swaggerParams: List<Parameter>?
+        swaggerParams: List<Parameter>?,
+        swaggerRequestBody: RequestBody?
     ): Map<KParameter, Any?> {
         val params: MutableMap<KParameter, Any?> = mutableMapOf()
         fullParameters.forEach { fullParam ->
@@ -115,7 +126,7 @@ class SwaggerServiceHandler(
                         fullParam.param,
                         context
                     )
-                else -> buildBodyParam(fullParam, context)
+                else -> buildBodyParam(fullParam, context, swaggerRequestBody)
             }
         }
         return params
@@ -153,6 +164,66 @@ class SwaggerServiceHandler(
     }
 
     private fun buildBodyParam(
+        fullParam: FullParameter,
+        context: RoutingContext,
+        swaggerRequestBody: RequestBody?
+    ): Any? {
+        val requestContentType = context.request().headers()["content-type"]
+        val swaggerContentType = swaggerRequestBody?.content
+
+        if (requestContentType.contains("application/json") &&
+            swaggerContentType?.containsKey("application/json") == true) {
+
+            return buildContentTypeApplicationJson(fullParam, context)
+        } else if (requestContentType.contains("multipart/form-data") &&
+            swaggerContentType?.containsKey("multipart/form-data") == true) {
+
+            return buildContentTypeMultipartFormData(fullParam, context)
+        } else {
+            throw VertxKuickstartException(
+                "Incomplete request body information"
+            )
+        }
+    }
+
+    private fun buildContentTypeMultipartFormData(
+        fullParam: FullParameter,
+        context: RoutingContext
+    ): Any? {
+        val getFormAttribute = {
+            context.request().getFormAttribute(fullParam.name)
+                ?: throw VertxKuickstartException(
+                    "Request does not contain form attribute ${fullParam.name}"
+                )
+        }
+        val toJsonObject = { JsonObject(getFormAttribute()) }
+        val toJsonArray = { JsonArray(getFormAttribute()) }
+        return when (fullParam.kclass) {
+            JsonObject::class -> toJsonObject()
+            JsonArray::class -> toJsonArray()
+            List::class -> fullParam.type.instantiate(toJsonArray())
+            Map::class -> fullParam.type.instantiate(toJsonObject())
+            ByteArray::class -> getFormAttribute().toByteArray()
+            Boolean::class -> getFormAttribute().toBoolean()
+            Double::class -> getFormAttribute().toDouble()
+            Float::class -> getFormAttribute().toFloat()
+            Instant::class -> Instant.parse(getFormAttribute())
+            Int::class -> getFormAttribute().toInt()
+            Long::class -> getFormAttribute().toLong()
+            String::class -> getFormAttribute()
+            Field::class -> throw VertxKuickstartException(
+                "Field not allowed as a controller function param"
+            )
+            FileUpload::class -> context.fileUploads().find {
+                it.name() == fullParam.name
+            } ?: throw VertxKuickstartException(
+                "Request does not contain file upload ${fullParam.name}"
+            )
+            else -> fullParam.type.instantiate(toJsonObject())
+        }
+    }
+
+    private fun buildContentTypeApplicationJson(
         fullParam: FullParameter,
         context: RoutingContext
     ): Any? {

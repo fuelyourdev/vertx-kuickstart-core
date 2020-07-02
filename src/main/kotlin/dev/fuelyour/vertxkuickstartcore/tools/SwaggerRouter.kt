@@ -21,8 +21,8 @@ interface SwaggerAuthHandler {
 }
 
 /**
- * Authenticate requests and route to appropriate controllers and functions based off of specification in the swagger
- * doc.
+ * Authenticate requests and route to appropriate controllers and functions
+ * based off of specification in the swagger doc.
  */
 class SwaggerRouter(
     private val swaggerAuthHandler: SwaggerAuthHandler,
@@ -55,7 +55,11 @@ class SwaggerRouter(
     fun route(router: Router, swaggerFile: OpenAPI) {
         router.route()
             .produces("application/json")
-            .handler(BodyHandler.create().setBodyLimit(5120000))
+            .handler(
+                BodyHandler.create()
+                    .setBodyLimit(5120000)
+                    .setDeleteUploadedFilesOnEnd(true)
+            )
             .handler(TimeoutHandler.create(30000))
 
         traverser.traverseSwaggerFile(swaggerFile) { swaggerRoute ->
@@ -107,7 +111,7 @@ class SwaggerRouter(
             forEach { handler(it) }
         }
         with(swaggerServiceHandler.createFailureHandlers()) {
-            forEach { handler(it) }
+            forEach { failureHandler(it) }
         }
     }
 }
