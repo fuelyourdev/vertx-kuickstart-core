@@ -251,6 +251,7 @@ class SwaggerServiceHandler(
     private fun parseParam(param: KParameter, value: String): Any {
         return when {
             param.isSubclassOf(Int::class) -> value.toInt()
+            param.isSubclassOf(Long::class) -> value.toLong()
             param.isSubclassOf(Boolean::class) -> value.toBoolean()
             param.isSubclassOf(UUID::class) -> UUID.fromString(value)
             else -> value
