@@ -8,7 +8,9 @@ import dev.fuelyour.vertxkuickstartcore.exceptions.VertxKuickstartException
 import io.swagger.v3.oas.models.Operation
 import io.swagger.v3.oas.models.parameters.Parameter
 import io.swagger.v3.oas.models.parameters.RequestBody
+import io.swagger.v3.oas.models.responses.ApiResponses
 import io.vertx.core.Handler
+import io.vertx.core.buffer.Buffer
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import io.vertx.core.shareddata.impl.ClusterSerializable
@@ -64,7 +66,8 @@ class SwaggerServiceHandler(
                                     controller,
                                     context,
                                     op.parameters,
-                                    op.requestBody
+                                    op.requestBody,
+                                    op.responses
                                 )
                             }
                         } catch (ex: TimeoutCancellationException) {
@@ -88,7 +91,8 @@ class SwaggerServiceHandler(
         instance: Any?,
         context: RoutingContext,
         swaggerParams: List<Parameter>?,
-        swaggerRequestBody: RequestBody?
+        swaggerRequestBody: RequestBody?,
+        swaggerResponses: ApiResponses
     ) {
         try {
             val params = buildParams(
@@ -98,7 +102,7 @@ class SwaggerServiceHandler(
                 swaggerRequestBody
             )
             val response = callSuspendBy(params)
-            handleResponse(context, response)
+            handleResponse(context, response, swaggerResponses)
         } catch (e: InvocationTargetException) {
             val ex = e.targetException
             ex.printStackTrace()
@@ -270,15 +274,35 @@ class SwaggerServiceHandler(
             }
         )
 
-    private fun handleResponse(context: RoutingContext, response: Any?) {
-        if (response == Unit) {
-            context.response().end()
-        } else {
+    private fun handleResponse(
+        context: RoutingContext,
+        response: Any?,
+        swaggerResponses: ApiResponses
+    ) {
+        val swaggerResponse = swaggerResponses
+            .filter { (statusCode, _) -> statusCode.startsWith('2') }
+            .map { (_, swaggerResponse) -> swaggerResponse }
+            .firstOrNull()
+            ?: throw VertxKuickstartException("No success response defined")
+        val content = swaggerResponse.content
+        if (content == null) {
+            if (response == Unit) {
+                context.response().end()
+            } else {
+                throw VertxKuickstartException(
+                    "Returning response, but openapi response content is not " +
+                        "defined"
+                )
+            }
+        } else if (content.containsKey("application/json")) {
             context.response().putHeader("content-type", "application/json")
             if (response == null) {
                 context.response()
                     .end(jsonObjectOf("response" to null).encode())
             } else when (response) {
+                is Unit -> throw VertxKuickstartException(
+                    "Openapi response defined, but response not returned"
+                )
                 is ClusterSerializable -> context.response()
                     .end(response.encode())
                 is List<*> -> context.response()
@@ -286,6 +310,25 @@ class SwaggerServiceHandler(
                 is Map<*, *> -> context.response()
                     .end(response.serialize().encode())
                 else -> context.response().end(response.serialize().encode())
+            }
+        } else {
+            val contentType = content.keys.firstOrNull()
+                ?: throw VertxKuickstartException(
+                    "Openapi response content type not defined"
+                )
+            context.response().putHeader("content-type", contentType)
+            if (response is ByteArray) {
+                context.response()
+                    .end(Buffer.buffer(response))
+            } else if (response is DownloadFile) {
+                context.response()
+                    .putHeader(
+                        "content-disposition",
+                        "attachment; filename=${response.fileName}"
+                    )
+                    .end(Buffer.buffer(response.file))
+            } else {
+                throw VertxKuickstartException("Unable to process response")
             }
         }
     }
