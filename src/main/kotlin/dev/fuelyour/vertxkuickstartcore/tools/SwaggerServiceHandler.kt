@@ -11,6 +11,7 @@ import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponses
 import io.vertx.core.Handler
 import io.vertx.core.buffer.Buffer
+import io.vertx.core.http.HttpMethod
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import io.vertx.core.shareddata.impl.ClusterSerializable
@@ -27,6 +28,7 @@ import kotlin.reflect.full.callSuspendBy
 import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.functions
 import kotlin.reflect.full.isSubclassOf
+import kotlin.reflect.jvm.javaMethod
 import kotlin.reflect.jvm.jvmErasure
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.TimeoutCancellationException
@@ -130,7 +132,17 @@ class SwaggerServiceHandler(
                         fullParam.param,
                         context
                     )
-                else -> buildBodyParam(fullParam, context, swaggerRequestBody)
+                context.request().method() in listOf(
+                    HttpMethod.POST,
+                    HttpMethod.PATCH,
+                    HttpMethod.PUT
+                ) -> buildBodyParam(fullParam, context, swaggerRequestBody)
+                else -> throw VertxKuickstartException(
+                    "Parameter ${fullParam.name} in " +
+                        "${fullParam.function.javaMethod?.declaringClass ?: ""}" +
+                        ".${fullParam.function.name} does not match up with " +
+                        "openapi definitions"
+                )
             }
         }
         return params
