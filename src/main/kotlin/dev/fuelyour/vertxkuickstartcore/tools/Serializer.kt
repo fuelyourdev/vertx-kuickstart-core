@@ -7,6 +7,7 @@ import java.time.Instant
 import java.util.UUID
 import kotlin.reflect.KProperty1
 import kotlin.reflect.full.declaredMemberProperties
+import kotlin.reflect.jvm.isAccessible
 import kotlin.reflect.jvm.javaGetter
 
 data class Field<T>(
@@ -23,7 +24,7 @@ interface Serializer {
     fun Map<*, *>.serialize(): JsonObject
 }
 
-class SerializerImpl : Serializer {
+class SerializerImpl(val includePrivate: Boolean = false) : Serializer {
 
     override fun List<*>.serialize(): JsonArray {
         val arr = JsonArray()
@@ -52,9 +53,11 @@ class SerializerImpl : Serializer {
     override fun <T : Any> T.serialize(): JsonObject {
         val json = JsonObject()
         this::class.declaredMemberProperties.forEach { prop ->
-            if (prop.isPublic()) {
+            if (includePrivate || prop.isPublic()) {
+                if (includePrivate)
+                    prop.isAccessible = true
                 val key = prop.name
-                when (val value = (prop as KProperty1<T, Any?>).get(this)) {
+                when (val value = prop.getter.call(this)) {
                     is ByteArray -> json.put(key, value)
                     is Boolean -> json.put(key, value)
                     is Double -> json.put(key, value)
