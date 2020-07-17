@@ -1,6 +1,7 @@
 package dev.fuelyour.vertxkuickstartcore.tools
 
 import dev.fuelyour.vertxkuickstartcore.annotations.Timeout
+import dev.fuelyour.vertxkuickstartcore.exceptions.BadRequestException
 import dev.fuelyour.vertxkuickstartcore.exceptions.HTTPStatusCode
 import dev.fuelyour.vertxkuickstartcore.exceptions.ResponseCodeException
 import dev.fuelyour.vertxkuickstartcore.exceptions.TimeoutException
@@ -17,6 +18,7 @@ import io.vertx.core.json.JsonObject
 import io.vertx.core.shareddata.impl.ClusterSerializable
 import io.vertx.ext.web.FileUpload
 import io.vertx.ext.web.RoutingContext
+import io.vertx.kotlin.core.json.jsonArrayOf
 import io.vertx.kotlin.core.json.jsonObjectOf
 import java.lang.reflect.InvocationTargetException
 import java.time.Instant
@@ -190,11 +192,19 @@ class SwaggerServiceHandler(
         if (requestContentType.contains("application/json") &&
             swaggerContentType?.containsKey("application/json") == true) {
 
-            return buildContentTypeApplicationJson(fullParam, context)
+            try {
+                return buildContentTypeApplicationJson(fullParam, context)
+            } catch (e: VertxKuickstartException) {
+                throw BadRequestException(e.message, throwable = e)
+            }
         } else if (requestContentType.contains("multipart/form-data") &&
             swaggerContentType?.containsKey("multipart/form-data") == true) {
 
-            return buildContentTypeMultipartFormData(fullParam, context)
+            try {
+                return buildContentTypeMultipartFormData(fullParam, context)
+            } catch (e: VertxKuickstartException) {
+                throw BadRequestException(e.message, throwable = e)
+            }
         } else {
             throw VertxKuickstartException(
                 "Incomplete request body information"
@@ -266,10 +276,46 @@ class SwaggerServiceHandler(
 
     private fun parseParam(param: KParameter, value: String): Any {
         return when {
-            param.isSubclassOf(Int::class) -> value.toInt()
-            param.isSubclassOf(Long::class) -> value.toLong()
-            param.isSubclassOf(Boolean::class) -> value.toBoolean()
-            param.isSubclassOf(UUID::class) -> UUID.fromString(value)
+            param.isSubclassOf(Int::class) -> try {
+                value.toInt()
+            } catch (e: NumberFormatException) {
+                throw BadRequestException(
+                    "${param.name} should be a number",
+                    details = jsonArrayOf(jsonObjectOf("value" to value)),
+                    throwable = e
+                )
+            }
+            param.isSubclassOf(Long::class) -> try {
+                value.toLong()
+            } catch (e: NumberFormatException) {
+                throw BadRequestException(
+                    "${param.name} should be a number",
+                    details = jsonArrayOf(jsonObjectOf("value" to value)),
+                    throwable = e
+                )
+            }
+            param.isSubclassOf(Boolean::class) ->
+                if (value.toLowerCase() == "true") {
+                    true
+                } else if (value.toLowerCase() == "false") {
+                    false
+                } else {
+                    throw BadRequestException(
+                        "${param.name} should be a boolean",
+                        details = jsonArrayOf(
+                            jsonObjectOf("value" to value)
+                        )
+                    )
+                }
+            param.isSubclassOf(UUID::class) -> try {
+                UUID.fromString(value)
+            } catch (e: IllegalArgumentException) {
+                throw BadRequestException(
+                    "${param.name} is not proper UUID format",
+                    details = jsonArrayOf(jsonObjectOf("value" to value)),
+                    throwable = e
+                )
+            }
             else -> value
         }
     }
