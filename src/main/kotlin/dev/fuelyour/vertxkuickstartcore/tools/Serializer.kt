@@ -43,7 +43,11 @@ class SerializerImpl(val includePrivate: Boolean = false) : Serializer {
                 is Map<*, *> -> arr.add(item.serialize())
                 is Field<*> -> arr.add(item.serialize())
                 null -> arr.add(null as Any?)
-                else -> arr.add(item.serialize())
+                else -> if (item::class.java.isEnum) {
+                    arr.add((item as Enum<*>).name)
+                } else {
+                    arr.add(item.serialize())
+                }
             }
         }
         return arr
@@ -73,7 +77,13 @@ class SerializerImpl(val includePrivate: Boolean = false) : Serializer {
                         key,
                         value.serialize()
                     )
-                    else -> if (value != null) json.put(key, value.serialize())
+                    else -> if (value != null) {
+                        if (value::class.java.isEnum) {
+                            json.put(key, (value as Enum<*>).name)
+                        } else {
+                            json.put(key, value.serialize())
+                        }
+                    }
                 }
             }
         }
@@ -105,7 +115,13 @@ class SerializerImpl(val includePrivate: Boolean = false) : Serializer {
                     key,
                     value.serialize()
                 )
-                else -> if (value != null) json.put(key, value.serialize())
+                else -> if (value != null) {
+                    if (value::class.java.isEnum) {
+                        json.put(key, (value as Enum<*>).name)
+                    } else {
+                        json.put(key, value.serialize())
+                    }
+                }
             }
         }
         return json
@@ -126,6 +142,10 @@ class SerializerImpl(val includePrivate: Boolean = false) : Serializer {
             is Map<*, *> -> value.serialize()
             is Field<*> -> throw Exception("Field of field not allowed")
             null -> null
-            else -> value.serialize()
+            else -> if (value::class.java.isEnum) {
+                (value as Enum<*>).name
+            } else {
+                value.serialize()
+            }
         }
 }
