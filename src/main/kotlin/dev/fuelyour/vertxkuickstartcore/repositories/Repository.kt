@@ -1,11 +1,9 @@
 package dev.fuelyour.vertxkuickstartcore.repositories
 
 import dev.fuelyour.vertxkuickstartcore.exceptions.ModelNotFoundException
-import dev.fuelyour.vertxkuickstartcore.tools.Deserializer
-import dev.fuelyour.vertxkuickstartcore.tools.DeserializerImpl
 import dev.fuelyour.vertxkuickstartcore.tools.FullType
-import dev.fuelyour.vertxkuickstartcore.tools.Serializer
-import dev.fuelyour.vertxkuickstartcore.tools.SerializerImpl
+import dev.fuelyour.vertxkuickstartcore.tools.instantiate
+import dev.fuelyour.vertxkuickstartcore.tools.serialize
 import dev.fuelyour.vertxkuickstartcore.tools.toPositional
 import dev.fuelyour.vertxkuickstartcore.tools.type
 import io.vertx.core.json.JsonArray
@@ -33,7 +31,7 @@ interface AllQuery<T : Any> {
             schema: String,
             table: String
         ): AllQuery<T> =
-            AllQueryImpl(schema, table, type(), DeserializerImpl())
+            AllQueryImpl(schema, table, type())
     }
 
     suspend fun all(connection: SqlClient): List<T>
@@ -45,9 +43,8 @@ interface AllQuery<T : Any> {
 class AllQueryImpl<T : Any>(
     schema: String,
     table: String,
-    private val type: FullType<T>,
-    deserializer: Deserializer
-) : AllQuery<T>, Deserializer by deserializer {
+    private val type: FullType<T>
+) : AllQuery<T> {
 
     private val tableName = "$schema.$table"
 
@@ -83,7 +80,7 @@ interface FindQuery<T : Any> {
             schema: String,
             table: String
         ): FindQuery<T> =
-            FindQueryImpl(schema, table, type(), DeserializerImpl())
+            FindQueryImpl(schema, table, type())
     }
 
     suspend fun find(id: String, connection: SqlClient): T
@@ -95,9 +92,8 @@ interface FindQuery<T : Any> {
 class FindQueryImpl<T : Any>(
     schema: String,
     table: String,
-    private val type: FullType<T>,
-    deserializer: Deserializer
-) : FindQuery<T>, Deserializer by deserializer {
+    private val type: FullType<T>
+) : FindQuery<T> {
 
     private val tableName = "$schema.$table"
 
@@ -142,9 +138,7 @@ interface InsertQuery<T : Any, R : Any> {
             InsertQueryImpl(
                 schema,
                 table,
-                type(),
-                SerializerImpl(),
-                DeserializerImpl()
+                type()
             )
     }
 
@@ -157,10 +151,8 @@ interface InsertQuery<T : Any, R : Any> {
 class InsertQueryImpl<T : Any, R : Any>(
     schema: String,
     table: String,
-    private val type: FullType<R>,
-    serializer: Serializer,
-    deserializer: Deserializer
-) : InsertQuery<T, R>, Serializer by serializer, Deserializer by deserializer {
+    private val type: FullType<R>
+) : InsertQuery<T, R> {
 
     private val tableName = "$schema.$table"
 
@@ -205,9 +197,7 @@ interface UpdateQuery<T : Any, R : Any> {
             UpdateQueryImpl(
                 schema,
                 table,
-                type(),
-                SerializerImpl(),
-                DeserializerImpl()
+                type()
             )
     }
 
@@ -220,10 +210,8 @@ interface UpdateQuery<T : Any, R : Any> {
 class UpdateQueryImpl<T : Any, R : Any>(
     schema: String,
     table: String,
-    private val type: FullType<R>,
-    serializer: Serializer,
-    deserializer: Deserializer
-) : UpdateQuery<T, R>, Serializer by serializer, Deserializer by deserializer {
+    private val type: FullType<R>
+) : UpdateQuery<T, R> {
 
     private val tableName = "$schema.$table"
 

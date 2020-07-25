@@ -33,14 +33,10 @@ class SwaggerRouter(
     companion object {
         fun build(
             swaggerAuthHandler: SwaggerAuthHandler,
-            controllerSupplier: ControllerSupplier,
-            serializer: Serializer,
-            deserializer: Deserializer
+            controllerSupplier: ControllerSupplier
         ): SwaggerRouter {
             val swaggerServiceHandler = SwaggerServiceHandler(
-                controllerSupplier,
-                serializer,
-                deserializer
+                controllerSupplier
             )
             val swaggerTraverser = SwaggerTraverser()
             val swaggerRouter = SwaggerRouter(

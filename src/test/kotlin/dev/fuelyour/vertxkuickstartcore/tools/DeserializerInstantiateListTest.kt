@@ -19,8 +19,7 @@ enum class TestEnum {
 
 data class TestDataClass(val param1: Int)
 
-class DeserializerInstantiateListTest :
-    Deserializer by DeserializerImpl(), StringSpec() {
+class DeserializerInstantiateListTest : StringSpec() {
 
     init {
         "FullType.instantiate can instantiate lists and keep type info" {

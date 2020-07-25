@@ -13,8 +13,7 @@ import io.vertx.kotlin.core.json.jsonArrayOf
 import io.vertx.kotlin.core.json.jsonObjectOf
 import java.time.Instant
 
-class DeserializerInstantiateFieldTest :
-    Deserializer by DeserializerImpl(), StringSpec() {
+class DeserializerInstantiateFieldTest : StringSpec() {
 
     init {
         "A field can be used for any of the standard types" {

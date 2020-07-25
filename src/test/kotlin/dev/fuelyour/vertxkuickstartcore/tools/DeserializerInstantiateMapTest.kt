@@ -13,8 +13,7 @@ import io.vertx.kotlin.core.json.jsonArrayOf
 import io.vertx.kotlin.core.json.jsonObjectOf
 import java.time.Instant
 
-class DeserializerInstantiateMapTest :
-    Deserializer by DeserializerImpl(), StringSpec() {
+class DeserializerInstantiateMapTest : StringSpec() {
 
     init {
         "FullType.instantiate can instantiate maps and keep type info" {

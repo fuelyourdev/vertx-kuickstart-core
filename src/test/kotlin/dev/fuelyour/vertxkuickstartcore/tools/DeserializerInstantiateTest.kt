@@ -16,8 +16,7 @@ enum class MyEnum {
     MyValue2
 }
 
-class DeserializerInstantiateTest :
-    Deserializer by DeserializerImpl(), StringSpec() {
+class DeserializerInstantiateTest : StringSpec() {
 
     init {
         "instantiate can instantiate data classes" {
