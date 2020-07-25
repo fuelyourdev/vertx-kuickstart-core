@@ -45,10 +45,8 @@ interface ControllerSupplier {
  * Builds out service handlers for routing to the controllers
  */
 class SwaggerServiceHandler(
-    private val controllerSupplier: ControllerSupplier,
-    serializer: Serializer,
-    deserializer: Deserializer
-) : Serializer by serializer, Deserializer by deserializer {
+    private val controllerSupplier: ControllerSupplier
+) {
     fun createServiceHandlers(op: Operation, opId: String): RouteHandlers {
         val (controllerName, methodName) = opId.split('.')
         val controller =
