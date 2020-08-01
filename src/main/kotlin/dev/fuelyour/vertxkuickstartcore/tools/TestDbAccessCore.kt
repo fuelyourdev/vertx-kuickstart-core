@@ -1,7 +1,6 @@
 package dev.fuelyour.vertxkuickstartcore.tools
 
 import dev.fuelyour.vertxkuickstartcore.config.config
-import dev.fuelyour.vertxkuickstartcore.exceptions.ModelNotFoundException
 import dev.fuelyour.vertxkuickstartcore.migrations.migrate
 import io.vertx.core.Vertx
 import io.vertx.core.json.JsonObject
@@ -13,7 +12,7 @@ import io.vertx.pgclient.PgException
 import io.vertx.pgclient.PgPool
 import io.vertx.sqlclient.SqlClient
 
-object TestDatabaseAccess : DatabaseAccess {
+object TestDbAccessCore : DbAccessCore {
     private var pool: PgPool? = null
 
     private suspend fun init() {
@@ -23,12 +22,16 @@ object TestDatabaseAccess : DatabaseAccess {
         val testConfig = config.copy().put("SERVICE_DB_NAME", testDBName)
         initTestPool(testConfig, vertx)
         try {
-            getConnection { }
+            withConnection({ connection -> BasicDbContext(connection) }) { }
         } catch (e: PgException) {
             println("Creating database $testDBName")
-            val da = DatabaseAccessImpl(config, vertx)
-            da.getConnection { conn ->
-                conn.preparedQueryAwait("CREATE DATABASE $testDBName;")
+            val da = DbAccessFactory(
+                DbAccessCoreImpl(config, vertx)
+            ).createWithContext { connection ->
+                BasicDbContext(connection)
+            }
+            da.withConnection {
+                connection.preparedQueryAwait("CREATE DATABASE $testDBName;")
             }
         }
         migrate(testConfig)
@@ -52,18 +55,20 @@ object TestDatabaseAccess : DatabaseAccess {
         pool = PgPool.pool(vertx, connectionOptions, poolOptions)
     }
 
-    override suspend fun <T : Any> getConnection(
-        dbAction: suspend (SqlClient) -> T?
+    override suspend fun <T, A : DbContext> withConnection(
+        dbContextInit: (SqlClient) -> A,
+        dbAction: suspend A.() -> T
     ): T {
         if (pool == null) {
             init()
         }
         val pool = pool ?: throw Exception("Failed to init connection pool")
-        val result: T?
         val connection = pool.getConnectionAwait()
         val transaction = connection.begin()
+        val dbContext = dbContextInit(connection)
+        val result: T
         try {
-            result = dbAction.invoke(connection)
+            result = dbContext.dbAction()
         } catch (ex: Exception) {
             throw ex
         } finally {
@@ -73,14 +78,13 @@ object TestDatabaseAccess : DatabaseAccess {
             } catch (ignore: Exception) {
             }
         }
-        if (result == null)
-            throw ModelNotFoundException("Record not found")
         return result
     }
 
-    override suspend fun <T : Any> getTransaction(
-        dbAction: suspend (SqlClient) -> T?
+    override suspend fun <T, A : DbContext> inTransaction(
+        dbContextInit: (SqlClient) -> A,
+        dbAction: suspend A.() -> T
     ): T {
-        return getConnection(dbAction)
+        return withConnection(dbContextInit, dbAction)
     }
 }

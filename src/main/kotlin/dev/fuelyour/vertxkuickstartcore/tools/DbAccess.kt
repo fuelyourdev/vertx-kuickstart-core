@@ -1,6 +1,5 @@
 package dev.fuelyour.vertxkuickstartcore.tools
 
-import dev.fuelyour.vertxkuickstartcore.exceptions.ModelNotFoundException
 import io.vertx.core.Vertx
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.pgclient.pgConnectOptionsOf
@@ -9,14 +8,26 @@ import io.vertx.kotlin.sqlclient.poolOptionsOf
 import io.vertx.pgclient.PgPool
 import io.vertx.sqlclient.SqlClient
 
-interface DatabaseAccess {
+class DbAccessFactory(private val core: DbAccessCore) {
+    fun <A : DbContext> createWithContext(
+        dbContextInit: (SqlClient) -> A
+    ): DbAccess<A> =
+        DbAccess(core, dbContextInit)
+}
+
+class DbAccess<A : DbContext>(
+    private val core: DbAccessCore,
+    private val dbContextInit: (SqlClient) -> A
+) {
+
     /**
      * Get a connection to the database.
      *
      * @param dbAction code block in which a connection to the database is
      * available
      */
-    suspend fun <T : Any> getConnection(dbAction: suspend (SqlClient) -> T?): T
+    suspend fun <T> withConnection(dbAction: suspend A.() -> T): T =
+        core.withConnection(dbContextInit, dbAction)
 
     /**
      * Get a transactional connection to the database. On success the
@@ -25,14 +36,31 @@ interface DatabaseAccess {
      * @param dbAction code block in which a connection to the database is
      * available
      */
-    suspend fun <T : Any> getTransaction(dbAction: suspend (SqlClient) -> T?): T
+    suspend fun <T> inTransaction(dbAction: suspend A.() -> T): T =
+        core.inTransaction(dbContextInit, dbAction)
+}
+
+interface DbContext
+
+class BasicDbContext(val connection: SqlClient) : DbContext
+
+interface DbAccessCore {
+    suspend fun <T, A : DbContext> withConnection(
+        dbContextInit: (SqlClient) -> A,
+        dbAction: suspend A.() -> T
+    ): T
+
+    suspend fun <T, A : DbContext> inTransaction(
+        dbContextInit: (SqlClient) -> A,
+        dbAction: suspend A.() -> T
+    ): T
 }
 
 /**
  * Establishes a connection to the database specified in the config,
  * and maintains a connection pool to that database.
  */
-class DatabaseAccessImpl(config: JsonObject, vertx: Vertx) : DatabaseAccess {
+class DbAccessCoreImpl(config: JsonObject, vertx: Vertx) : DbAccessCore {
     private val pool: PgPool
 
     init {
@@ -53,13 +81,15 @@ class DatabaseAccessImpl(config: JsonObject, vertx: Vertx) : DatabaseAccess {
         pool = PgPool.pool(vertx, connectionOptions, poolOptions)
     }
 
-    override suspend fun <T : Any> getConnection(
-        dbAction: suspend (SqlClient) -> T?
+    override suspend fun <T, A : DbContext> withConnection(
+        dbContextInit: (SqlClient) -> A,
+        dbAction: suspend A.() -> T
     ): T {
-        val result: T?
         val connection = pool.getConnectionAwait()
+        val dbContext = dbContextInit(connection)
+        val result: T
         try {
-            result = dbAction.invoke(connection)
+            result = dbContext.dbAction()
         } catch (ex: Exception) {
             throw ex
         } finally {
@@ -68,19 +98,19 @@ class DatabaseAccessImpl(config: JsonObject, vertx: Vertx) : DatabaseAccess {
             } catch (ignore: Exception) {
             }
         }
-        if (result == null)
-            throw ModelNotFoundException("Record not found")
         return result
     }
 
-    override suspend fun <T : Any> getTransaction(
-        dbAction: suspend (SqlClient) -> T?
+    override suspend fun <T, A : DbContext> inTransaction(
+        dbContextInit: (SqlClient) -> A,
+        dbAction: suspend A.() -> T
     ): T {
-        val result: T?
         val connection = pool.getConnectionAwait()
         val transaction = connection.begin()
+        val dbContext = dbContextInit(connection)
+        val result: T
         try {
-            result = dbAction.invoke(connection)
+            result = dbContext.dbAction()
             transaction.commit()
         } catch (ex: Exception) {
             transaction.rollback()
@@ -91,8 +121,6 @@ class DatabaseAccessImpl(config: JsonObject, vertx: Vertx) : DatabaseAccess {
             } catch (ignore: Exception) {
             }
         }
-        if (result == null)
-            throw ModelNotFoundException("Record not found")
         return result
     }
 }
