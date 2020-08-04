@@ -44,6 +44,9 @@ interface DbContext
 
 class BasicDbContext(val connection: SqlClient) : DbContext
 
+fun basicDbContext(connection: SqlClient): BasicDbContext =
+    BasicDbContext(connection)
+
 interface DbAccessCore {
     suspend fun <T, A : DbContext> withConnection(
         dbContextInit: (SqlClient) -> A,
