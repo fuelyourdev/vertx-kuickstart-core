@@ -6,18 +6,18 @@ import io.vertx.kotlin.pgclient.pgConnectOptionsOf
 import io.vertx.kotlin.sqlclient.getConnectionAwait
 import io.vertx.kotlin.sqlclient.poolOptionsOf
 import io.vertx.pgclient.PgPool
-import io.vertx.sqlclient.SqlClient
+import io.vertx.sqlclient.SqlConnection
 
 class DbAccessFactory(private val core: DbAccessCore) {
     fun <A : DbContext> createWithContext(
-        dbContextInit: (SqlClient) -> A
+        dbContextInit: (SqlConnection) -> A
     ): DbAccess<A> =
         DbAccess(core, dbContextInit)
 }
 
 class DbAccess<A : DbContext>(
     private val core: DbAccessCore,
-    private val dbContextInit: (SqlClient) -> A
+    private val dbContextInit: (SqlConnection) -> A
 ) {
 
     /**
@@ -42,19 +42,19 @@ class DbAccess<A : DbContext>(
 
 interface DbContext
 
-class BasicDbContext(val connection: SqlClient) : DbContext
+class BasicDbContext(val connection: SqlConnection) : DbContext
 
-fun basicDbContext(connection: SqlClient): BasicDbContext =
+fun basicDbContext(connection: SqlConnection): BasicDbContext =
     BasicDbContext(connection)
 
 interface DbAccessCore {
     suspend fun <T, A : DbContext> withConnection(
-        dbContextInit: (SqlClient) -> A,
+        dbContextInit: (SqlConnection) -> A,
         dbAction: suspend A.() -> T
     ): T
 
     suspend fun <T, A : DbContext> inTransaction(
-        dbContextInit: (SqlClient) -> A,
+        dbContextInit: (SqlConnection) -> A,
         dbAction: suspend A.() -> T
     ): T
 }
@@ -85,7 +85,7 @@ class DbAccessCoreImpl(config: JsonObject, vertx: Vertx) : DbAccessCore {
     }
 
     override suspend fun <T, A : DbContext> withConnection(
-        dbContextInit: (SqlClient) -> A,
+        dbContextInit: (SqlConnection) -> A,
         dbAction: suspend A.() -> T
     ): T {
         val connection = pool.getConnectionAwait()
@@ -105,7 +105,7 @@ class DbAccessCoreImpl(config: JsonObject, vertx: Vertx) : DbAccessCore {
     }
 
     override suspend fun <T, A : DbContext> inTransaction(
-        dbContextInit: (SqlClient) -> A,
+        dbContextInit: (SqlConnection) -> A,
         dbAction: suspend A.() -> T
     ): T {
         val connection = pool.getConnectionAwait()
