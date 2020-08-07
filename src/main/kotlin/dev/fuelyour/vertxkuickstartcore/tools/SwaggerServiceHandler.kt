@@ -400,12 +400,14 @@ class SwaggerServiceHandler(
             }
             context.statusCode() <= 0 -> response
                 .setStatusCode(HTTPStatusCode.INTERNAL_ERROR.value)
-                .end(failure.message ?: "")
+                .end(failure.message.asJson().encode())
             else -> response
                 .setStatusCode(context.statusCode())
-                .end(failure.message ?: "")
+                .end(failure.message.asJson().encode())
         }
     }
+
+    private fun String?.asJson() = jsonObjectOf("message" to (this ?: ""))
 
     private fun ClusterSerializable.encode(): String {
         return when (this) {

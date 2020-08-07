@@ -5,12 +5,11 @@ import dev.fuelyour.vertxkuickstartcore.migrations.migrate
 import io.vertx.core.Vertx
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.pgclient.pgConnectOptionsOf
+import io.vertx.kotlin.sqlclient.executeAwait
 import io.vertx.kotlin.sqlclient.getConnectionAwait
 import io.vertx.kotlin.sqlclient.poolOptionsOf
-import io.vertx.kotlin.sqlclient.preparedQueryAwait
 import io.vertx.pgclient.PgException
 import io.vertx.pgclient.PgPool
-import io.vertx.sqlclient.SqlClient
 import io.vertx.sqlclient.SqlConnection
 import io.vertx.sqlclient.Transaction
 
@@ -38,7 +37,8 @@ object TestDbAccessCorePool {
                 DbAccessCoreImpl(config, vertx)
             ).createWithContext(::basicDbContext)
             da.withConnection {
-                connection.preparedQueryAwait("CREATE DATABASE $testDBName;")
+                connection.preparedQuery("create database $testDBName;")
+                    .executeAwait()
             }
         }
         migrate(testConfig)
@@ -66,7 +66,7 @@ object TestDbAccessCorePool {
 class TestDbAccessCore : DbAccessCore {
 
     override suspend fun <T, A : DbContext> withConnection(
-        dbContextInit: (SqlClient) -> A,
+        dbContextInit: (SqlConnection) -> A,
         dbAction: suspend A.() -> T
     ): T {
         val pool = TestDbAccessCorePool.getPool()
@@ -89,7 +89,7 @@ class TestDbAccessCore : DbAccessCore {
     }
 
     override suspend fun <T, A : DbContext> inTransaction(
-        dbContextInit: (SqlClient) -> A,
+        dbContextInit: (SqlConnection) -> A,
         dbAction: suspend A.() -> T
     ): T {
         return withConnection(dbContextInit, dbAction)
@@ -117,7 +117,7 @@ class IntegrationTestDbAccessCore : DbAccessCore {
     }
 
     override suspend fun <T, A : DbContext> withConnection(
-        dbContextInit: (SqlClient) -> A,
+        dbContextInit: (SqlConnection) -> A,
         dbAction: suspend A.() -> T
     ): T {
         val connection = connection
@@ -127,7 +127,7 @@ class IntegrationTestDbAccessCore : DbAccessCore {
     }
 
     override suspend fun <T, A : DbContext> inTransaction(
-        dbContextInit: (SqlClient) -> A,
+        dbContextInit: (SqlConnection) -> A,
         dbAction: suspend A.() -> T
     ): T =
         withConnection(dbContextInit, dbAction)

@@ -8,7 +8,7 @@ import dev.fuelyour.vertxkuickstartcore.tools.toPositional
 import dev.fuelyour.vertxkuickstartcore.tools.type
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
-import io.vertx.kotlin.sqlclient.preparedQueryAwait
+import io.vertx.kotlin.sqlclient.executeAwait
 import io.vertx.sqlclient.SqlClient
 
 /**
@@ -50,7 +50,7 @@ class AllQueryImpl<T : Any>(
 
     override suspend fun all(connection: SqlClient): List<T> {
         return connection
-            .preparedQueryAwait("select * from $tableName")
+            .preparedQuery("select * from $tableName").executeAwait()
             .map { row ->
                 val json = row.getValue("data")
                     .let { it as JsonObject }
@@ -101,7 +101,8 @@ class FindQueryImpl<T : Any>(
         val query = "select * from $tableName where id = :id"
         val positionalSql = toPositional(query, mapOf("id" to id))
         return connection
-            .preparedQueryAwait(positionalSql.sql, positionalSql.params)
+            .preparedQuery(positionalSql.sql)
+            .executeAwait(positionalSql.params)
             .map { row ->
                 val json = row.getValue("data")
                     .let { it as JsonObject }
@@ -161,10 +162,8 @@ class InsertQueryImpl<T : Any, R : Any>(
             "insert into $tableName (data) values (:data::jsonb) returning *"
         val data = toInsert.serialize().also { it.remove("id") }
         val positionalSql = toPositional(query, mapOf("data" to data))
-        return connection.preparedQueryAwait(
-            positionalSql.sql,
-            positionalSql.params
-        )
+        return connection.preparedQuery(positionalSql.sql)
+            .executeAwait(positionalSql.params)
             .map { row ->
                 val json = row.getValue("data")
                     .let { it as JsonObject }
@@ -225,10 +224,8 @@ class UpdateQueryImpl<T : Any, R : Any>(
         val data = toUpdate.serialize().also { it.remove("id") }
         val positionalSql =
             toPositional(query, mapOf("id" to id, "data" to data))
-        return connection.preparedQueryAwait(
-            positionalSql.sql,
-            positionalSql.params
-        )
+        return connection.preparedQuery(positionalSql.sql)
+            .executeAwait(positionalSql.params)
             .map { row ->
                 val json = row.getValue("data")
                     .let { it as JsonObject }
@@ -271,10 +268,8 @@ class DeleteQueryImpl(schema: String, table: String) : DeleteQuery {
     override suspend fun delete(id: String, connection: SqlClient): String {
         val query = "delete from $tableName where id = :id returning id"
         val positionalSql = toPositional(query, mapOf("id" to id))
-        return connection.preparedQueryAwait(
-            positionalSql.sql,
-            positionalSql.params
-        )
+        return connection.preparedQuery(positionalSql.sql)
+            .executeAwait(positionalSql.params)
             .map { row -> row.getString("id") }
             .firstOrNull()
             ?: throw ModelNotFoundException(

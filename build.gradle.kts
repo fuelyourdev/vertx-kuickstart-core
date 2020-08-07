@@ -10,7 +10,7 @@ plugins {
 }
 
 group = "dev.fuelyour"
-version = "0.0.17"
+version = "0.0.18"
 val projectDescription = "Core libraries used by microservices created from " +
     "the vertx-kuickstart template"
 description = projectDescription
@@ -28,7 +28,7 @@ repositories {
     mavenCentral()
 }
 
-val vertxVersion = "3.8.2"
+val vertxVersion = "3.9.2"
 
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
