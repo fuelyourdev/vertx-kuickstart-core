@@ -1,6 +1,7 @@
 package dev.fuelyour.vertxkuickstartcore.migrations
 
 import io.vertx.core.json.JsonObject
+import io.vertx.kotlin.core.json.jsonObjectOf
 import org.flywaydb.core.Flyway
 
 /**
@@ -11,7 +12,7 @@ import org.flywaydb.core.Flyway
  *     SERVICE_DB_HOST, SERVICE_DB_PORT, SERVICE_DB_NAME,
  *     SERVICE_DB_USER, SERVICE_DB_PASSWORD
  */
-fun migrate(dbConfig: JsonObject) {
+fun migrate(dbConfig: JsonObject, placeholders: JsonObject = jsonObjectOf()) {
     val host = dbConfig.getString("SERVICE_DB_HOST")
     val port = dbConfig.getInteger("SERVICE_DB_PORT")
     val name = dbConfig.getString("SERVICE_DB_NAME")
@@ -21,6 +22,13 @@ fun migrate(dbConfig: JsonObject) {
     val flyway = Flyway
         .configure()
         .schemas("public")
+        .placeholders(
+            placeholders.filter { (_, value) ->
+                value is String
+            }.map { (key, value) ->
+                key to value.toString()
+            }.toMap()
+        )
         .dataSource(url, user, password)
         .load()
     flyway.migrate()

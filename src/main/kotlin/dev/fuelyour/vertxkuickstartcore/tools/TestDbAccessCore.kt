@@ -1,3 +1,5 @@
+@file:Suppress("SqlNoDataSourceInspection")
+
 package dev.fuelyour.vertxkuickstartcore.tools
 
 import dev.fuelyour.vertxkuickstartcore.config.config
@@ -14,23 +16,50 @@ import io.vertx.sqlclient.SqlConnection
 import io.vertx.sqlclient.Transaction
 
 object TestDbAccessCorePool {
-    private var _pool: PgPool? = null
+    private var pool: PgPool? = null
 
-    suspend fun getPool(): PgPool {
-        if (_pool == null) {
+    private var connection: SqlConnection? = null
+    private var transaction: Transaction? = null
+
+    suspend fun begin() {
+        connection = getPool().getConnectionAwait()
+        transaction = connection?.begin()
+    }
+
+    fun end() {
+        try {
+            transaction?.rollback()
+            connection?.close()
+        } catch (ignore: Exception) {
+        }
+        connection = null
+        transaction = null
+    }
+
+    fun getConnection(): SqlConnection? {
+        return connection
+    }
+
+    private suspend fun getPool(): PgPool {
+        if (pool == null) {
             init()
         }
-        return _pool ?: throw Exception("Failed to init connection pool")
+        return pool ?: throw Exception("Failed to init connection pool")
     }
 
     private suspend fun init() {
         val vertx = Vertx.vertx()
-        val config = vertx.config()
+        val config = vertx.config().getJsonObject("SERVICE_DB_SYS_ADMIN")
+        val placeholders = vertx.config()
+            .getJsonObject("SERVICE_DB_PLACEHOLDERS")
         val testDBName = "${config.getString("SERVICE_DB_NAME")}_test"
         val testConfig = config.copy().put("SERVICE_DB_NAME", testDBName)
         initTestPool(testConfig, vertx)
         try {
-            TestDbAccessCore().withConnection(::basicDbContext) { }
+            val testDbAccessCore = TestDbAccessCore(config)
+            begin()
+            testDbAccessCore.withConnection(::basicDbContext) { }
+            end()
         } catch (e: PgException) {
             println("Creating database $testDBName")
             val da = DbAccessFactory(
@@ -41,7 +70,7 @@ object TestDbAccessCorePool {
                     .executeAwait()
             }
         }
-        migrate(testConfig)
+        migrate(testConfig, placeholders)
     }
 
     private fun initTestPool(config: JsonObject, vertx: Vertx) {
@@ -58,72 +87,28 @@ object TestDbAccessCorePool {
                 )
             )
         )
-        val poolOptions = poolOptionsOf(maxSize = 10)
-        _pool = PgPool.pool(vertx, connectionOptions, poolOptions)
+        val poolOptions = poolOptionsOf(maxSize = 1)
+        pool = PgPool.pool(vertx, connectionOptions, poolOptions)
     }
 }
 
-class TestDbAccessCore : DbAccessCore {
+class TestDbAccessCore(config: JsonObject) : DbAccessCore {
+
+    private val user = config.getString("SERVICE_DB_USER")
 
     override suspend fun <T, A : DbContext> withConnection(
         dbContextInit: (SqlConnection) -> A,
         dbAction: suspend A.() -> T
     ): T {
-        val pool = TestDbAccessCorePool.getPool()
-        val connection = pool.getConnectionAwait()
-        val transaction = connection.begin()
-        val dbContext = dbContextInit(connection)
-        val result: T
-        try {
-            result = dbContext.dbAction()
-        } catch (ex: Exception) {
-            throw ex
-        } finally {
-            try {
-                transaction.rollback()
-                connection.close()
-            } catch (ignore: Exception) {
-            }
-        }
-        return result
-    }
-
-    override suspend fun <T, A : DbContext> inTransaction(
-        dbContextInit: (SqlConnection) -> A,
-        dbAction: suspend A.() -> T
-    ): T {
-        return withConnection(dbContextInit, dbAction)
-    }
-}
-
-class IntegrationTestDbAccessCore : DbAccessCore {
-
-    var connection: SqlConnection? = null
-    var transaction: Transaction? = null
-
-    suspend fun begin() {
-        connection = TestDbAccessCorePool.getPool().getConnectionAwait()
-        transaction = connection?.begin()
-    }
-
-    suspend fun end() {
-        try {
-            transaction?.rollback()
-            connection?.close()
-        } catch (ignore: Exception) {
-        }
-        connection = null
-        transaction = null
-    }
-
-    override suspend fun <T, A : DbContext> withConnection(
-        dbContextInit: (SqlConnection) -> A,
-        dbAction: suspend A.() -> T
-    ): T {
-        val connection = connection
+        val connection = TestDbAccessCorePool.getConnection()
             ?: throw Exception("Must call begin() first")
+        connection.preparedQuery("set role $user;")
+            .executeAwait()
         val dbContext = dbContextInit(connection)
-        return dbContext.dbAction()
+        val result = dbContext.dbAction()
+        connection.preparedQuery("reset role;")
+            .executeAwait()
+        return result
     }
 
     override suspend fun <T, A : DbContext> inTransaction(
